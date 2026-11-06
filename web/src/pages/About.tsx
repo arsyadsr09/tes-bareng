@@ -81,7 +81,7 @@ function RingRule() {
   return (
     <figure className="ab-ring">
       <svg viewBox="0 0 320 320" width="320" height="320" role="img" aria-labelledby="ab-ring-t">
-        <title id="ab-ring-t">Contoh cohort 20 app: anggota di posisi pertama ngetes 14 app berikutnya searah jarum jam. 5 app sisanya dites anggota lain.</title>
+        <title id="ab-ring-t">Contoh cohort 20 app yang semuanya butuh 12 tester: anggota di posisi pertama ngetes 14 app berikutnya searah jarum jam. 5 app sisanya dites anggota lain.</title>
         {Array.from({ length: k }, (_, j) => {
           const p = pt(j + 1)
           return <line key={j} x1={me.x} y1={me.y} x2={p.x} y2={p.y} className="ab-ring-tie" />
@@ -106,7 +106,7 @@ function RingRule() {
 }
 
 const STEPS: { t: string; d: ReactNode }[] = [
-  { t: 'Gabung Google Group', d: <>Masuk ke <code className="ab-email">{COMMUNITY_GROUP}</code> dengan akun Google di HP-mu. Hanya anggota grup ini yang bisa opt-in.</> },
+  { t: 'Gabung Google Group', d: <>Masuk ke <code className="ab-email">{COMMUNITY_GROUP}</code> dengan akun Google di HP-mu. Hanya anggota grup ini yang bisa opt-in. Untuk app yang memakai daftar email, grup tidak dipakai: tekan Minta ditambahkan di halaman app dan setujui emailmu terlihat oleh creator app itu, lalu tunggu creator menandai Sudah ditambahkan.</> },
   { t: 'Opt-in', d: 'Buka link opt-in di halaman app, lalu ketuk Jadi penguji di Google Play.' },
   { t: 'Install, lalu daftar', d: 'Pasang app-nya dari Play Store dengan akun yang sama, lalu tekan Gabung sebagai tester di halaman app di TesBareng.' },
   { t: 'Pakai', d: 'Baca panduan feedback dari creator, lalu benar-benar pakai app-nya. Biarkan terpasang 14 hari.' },
@@ -115,7 +115,7 @@ const STEPS: { t: string; d: ReactNode }[] = [
 ]
 
 const COHORT_FACTS: { t: string; d: ReactNode }[] = [
-  { t: 'Minimal 13 app', d: 'Setiap creator membawa satu app. Selama cohort masih Forming, creator mengajukan app-nya, lalu admin menyetujui atau menolak. Admin juga bisa langsung menambahkan app. Dengan 13 app, setiap app sudah bisa dapat 12 tester dari sesama creator saja.' },
+  { t: 'Minimal 13 app', d: 'Setiap creator membawa satu app. Selama cohort masih Forming, creator mengajukan app-nya, lalu admin menyetujui atau menolak, boleh dengan alasan. Satu permintaan dalam satu waktu; tarik dulu kalau mau mengajukan yang lain. Admin juga bisa langsung menambahkan app. Dengan 13 app, setiap app sudah bisa dapat 12 tester dari sesama creator saja.' },
   { t: 'Opt-in dalam 48 jam', d: <>Hitungan mulai Hari 0. Lewat 48 jam, yang belum opt-in tercatat Behind, dan app miliknya mendapat label <span className="ab-chip c-cabai">! Belum tes</span> sampai tugasnya terpenuhi. Admin bisa memindahkan slot yang kosong ke anggota lain.</> },
   { t: 'Tutup di hari 21', d: 'Cohort ditutup saat semua app siap ajukan production, atau paling lambat hari ke-21.' },
   { t: 'Good, Owing, Settled', d: 'Saat cohort tutup, anggota yang semua tugasnya selesai berstatus Good. Yang belum berstatus Owing dan tidak bisa ikut cohort berikutnya sampai admin menandainya Settled.' },
@@ -156,7 +156,8 @@ const RULES: { group: string; items: { t: string; d: string }[] }[] = [
   {
     group: 'Sebagai creator',
     items: [
-      { t: 'Pasang grup komunitas', d: `Masukkan ${COMMUNITY_GROUP} sebagai daftar tester di closed track. Tanpa itu, opt-in anggota tidak terhitung.` },
+      { t: 'Pasang grup komunitas', d: `Masukkan ${COMMUNITY_GROUP} sebagai daftar tester di closed track. Tanpa itu, opt-in anggota tidak terhitung. Kalau track-mu sudah memakai daftar email, pilih Daftar email di form app (terbuka setelah kamu ngetes 3 app): tempel email tester yang meminta, lalu tandai Sudah ditambahkan.` },
+      { t: 'Minta tester sesuai kebutuhan', d: 'Di form app, isi berapa tester yang kamu butuhkan dari TesBareng (1–12). Google tetap butuh 12; sisanya dari grup atau daftarmu sendiri, dilaporkan sendiri. Kursi penuh tidak menolak tester baru, mereka jadi cadangan.' },
       { t: 'Tulis panduan feedback sebagai pertanyaan', d: '“Coba level 3 di layar kecil: tombol lompat mudah ditekan?” Bukan teks ulasan siap salin. Maksimal 500 karakter.' },
       { t: 'Balas setiap feedback', d: 'Baca feedback di Play Console, tandai Terverifikasi, balas di sana, lalu tandai Sudah saya balas di TesBareng.' },
       { t: 'Catat setiap build', d: 'Catat setiap upload ke closed track di log build. Dua sampai tiga build selama tes adalah target komunitas, bukan aturan resmi Google.' },
@@ -284,7 +285,7 @@ export function About({ embedded = false }: { embedded?: boolean }) {
         </div>
 
         <Section id="syarat" n={1} title="Syarat dari Google Play"
-          lede="Akun developer pribadi baru wajib menjalankan closed test sebelum boleh mengajukan akses production.">
+          lede="Akun developer pribadi baru wajib menjalankan closed test sebelum boleh mengajukan akses production. Kalau app‑mu sudah rilis ke production, syarat ini sudah lewat; kamu tetap bisa ikut sebagai tester.">
           <div className="ab-sheet">
             <div className="ab-meter">
               <div className="ab-meter-top"><span>Tester tetap opt-in</span><span className="num">minimal 12</span></div>
@@ -304,7 +305,7 @@ export function About({ embedded = false }: { embedded?: boolean }) {
           </div>
         </Section>
 
-        <Section id="ngetes" n={2} title="Cara ngetes satu app" lede="Enam langkah. Langkah pertama cukup sekali untuk semua app.">
+        <Section id="ngetes" n={2} title="Cara ngetes satu app" lede="Enam langkah. Langkah pertama cukup sekali untuk semua app yang memakai Google Group; app dengan daftar email memintanya per app. Yang masih harus kamu kerjakan selalu ada di Tugas saya.">
           <ol className="ab-steps">
             {STEPS.map((s, i) => (
               <li key={s.t}>
@@ -320,13 +321,14 @@ export function About({ embedded = false }: { embedded?: boolean }) {
         </Section>
 
         <Section id="cohort" n={3} title="Cohort: tugas dibagi rata"
-          lede="Cohort mengelompokkan creator supaya tidak ada yang cuma minta dites. Siapa ngetes app siapa ditentukan sistem, bukan dipilih sendiri.">
+          lede="Cohort mengelompokkan creator supaya tidak ada yang cuma minta dites. Siapa ngetes app siapa ditentukan sistem, bukan dipilih sendiri. Cohort tidak wajib: tanpa cohort kamu tetap bisa mendaftarkan app dan ngetes app mana saja, hanya tanpa jaminan dites balik.">
           <div className="ab-split">
             <div className="ab-card-flat">
               <h3>Pembagian tugas</h3>
               <ul className="ab-rule-list">
-                <li><b className="num">13–16 app</b><span>Semua ngetes semua app lain.</span></li>
-                <li><b className="num">Lebih dari 16</b><span>Urutan diacak menjadi lingkaran. Kamu ngetes 14 app setelahmu, dan setiap app dapat tepat 14 tester.</span></li>
+                <li><b>Butuh + 2</b><span>Setiap app dapat tester sebanyak yang creator butuhkan dari TesBareng, ditambah 2 cadangan (paling banyak semua app lain di cohort).</span></li>
+                <li><b>Memberi = menerima</b><span>Kamu ngetes sebanyak tester yang diterima app‑mu. Butuh 12, kamu ngetes 14 app; butuh 3, biasanya 5.</span></li>
+                <li><b>Diacak</b><span>Urutan anggota diacak, lalu tugas dibagi sistem. Kalau semua app butuh 12, hasilnya lingkaran seperti pada gambar.</span></li>
               </ul>
             </div>
             <RingRule />
@@ -347,10 +349,10 @@ export function About({ embedded = false }: { embedded?: boolean }) {
           </ol>
         </Section>
 
-        <Section id="tester-murni" n={4} title="Tester murni" lede="Belum punya app, atau sedang di antara dua app? Ikut cohort tanpa membawa app.">
+        <Section id="tester-murni" n={4} title="Tester murni" lede="Belum punya app, atau sedang di antara dua app? Ikut cohort tanpa membawa app. Tanpa cohort pun bisa: pilih app di daftar app dan gabung sebagai tester.">
           <ul className="ab-rule-list ab-rule-list--boxed">
             <li><b>Gabung sampai akhir hari 6</b><span>Selama cohort masih Forming, atau sudah berjalan sampai akhir hari ke-6 (tepat 7 × 24 jam setelah Hari 0). Batas ini menyisakan 14 hari sebelum cohort tutup di hari 21.</span></li>
-            <li><b>14 app untukmu</b><span>Kamu ditugaskan 14 app (atau semua app kalau kurang dari itu), dimulai dari app yang testernya paling sedikit.</span></li>
+            <li><b>14 app untukmu</b><span>Kamu ditugaskan 14 app (atau semua app kalau kurang dari itu), dimulai dari app yang paling kurang tester dibanding kebutuhannya.</span></li>
             <li><b>48 jam milikmu sendiri</b><span>Batas opt-in dihitung dari saat kamu ditugaskan, bukan dari Hari 0. Titik cek berikutnya ikut bergeser.</span></li>
           </ul>
         </Section>
@@ -395,7 +397,7 @@ export function About({ embedded = false }: { embedded?: boolean }) {
           </ul>
         </Section>
 
-        <Section id="whatsapp" n={8} title="Grup WhatsApp cohort" lede="Opsional. Satu-satunya grup yang wajib adalah Google Group.">
+        <Section id="whatsapp" n={8} title="Grup WhatsApp cohort" lede="Opsional. Yang dibutuhkan hanya Google Group, atau persetujuan berbagi email untuk app dengan daftar email.">
           <ul className="ab-bullets">
             <li>Link grup hanya tampil untuk anggota cohort itu, setelah masuk.</li>
             <li>Anggota grup bisa melihat nomor HP satu sama lain. Gabung hanya kalau kamu nyaman.</li>

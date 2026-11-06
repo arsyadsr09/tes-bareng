@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { NavLink, Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
-import { useAppsBy, useEntriesOf, errorText } from '../lib/data'
+import { useAppsBy, errorText } from '../lib/data'
+import { useMyTodos } from '../lib/todos'
 import { COMMUNITY_GROUP, COMMUNITY_GROUP_URL } from '../lib/community'
 import { Avatar, useToast } from './bits'
 import { useReducedMotion, useTheme } from '../lib/theme'
@@ -12,9 +13,9 @@ export function Shell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
   const { user, isAdmin, ready, signIn, signOut } = useAuth()
   const toast = useToast()
-  const entries = useEntriesOf(user?.uid)
   const mine = useAppsBy(user?.uid)
-  const owed = entries.data.filter((e) => e.status === 'active' && !e.feedbackSent).length
+  // Same list as Tugas saya, so the badge and the page always agree.
+  const owed = useMyTodos(user?.uid, isAdmin).total
   const menuBtn = useRef<HTMLButtonElement>(null)
   const closeBtn = useRef<HTMLButtonElement>(null)
   const wasOpen = useRef(false)
@@ -60,7 +61,7 @@ export function Shell({ children }: { children: ReactNode }) {
         <nav className="nav-list primary" aria-label="Menu utama">
           <NavLink to="/apps" end className="nav-item"><IconApps /><span className="label">Aplikasi</span></NavLink>
           <NavLink to="/cohorts" className="nav-item"><IconCohort /><span className="label">Cohort</span></NavLink>
-          <NavLink to="/me" className="nav-item"><IconTodo /><span className="label">Tugas saya</span>{owed > 0 && <span className="count num">{owed > 99 ? '99+' : owed}<span className="sr-only"> feedback belum dikirim</span></span>}</NavLink>
+          <NavLink to="/me" className="nav-item"><IconTodo /><span className="label">Tugas saya</span>{owed > 0 && <span className="count num">{owed > 99 ? '99+' : owed}<span className="sr-only"> tugas tertunda</span></span>}</NavLink>
           {user && <NavLink to={`/u/${user.uid}`} className="nav-item"><IconUser /><span className="label">Profil saya</span></NavLink>}
           <NavLink to="/about" className="nav-item"><IconBook /><span className="label">Aturan main</span></NavLink>
           {isAdmin && <NavLink to="/admin" className="nav-item"><IconAdmin /><span className="label">Admin</span></NavLink>}

@@ -56,9 +56,9 @@ export function FeedbackChip({ t, className }: { t: Pick<TesterDoc, 'feedbackSen
 // ---------- progress: counted cells, not a smooth bar ----------
 
 /** One cell per tester slot (12 by default, ADR-012): eligible (≥14 days) pandan, active langit, empty white. */
-export function Seats({ active, eligible, total = TARGET_TESTERS, label, className }: { active: number; eligible: number; total?: number; label?: string; className?: string }) {
+export function Seats({ active, eligible = 0, total = TARGET_TESTERS, label, className }: { active: number; eligible?: number; total?: number; label?: string; className?: string }) {
   return (
-    <span className={`seats ${className ?? ''}`} style={{ '--n': total } as CSSProperties} role="img" aria-label={label ?? `${active} dari ${total} tester aktif, ${eligible} sudah 14 hari`}>
+    <span className={`seats ${className ?? ''}`} style={{ '--n': total } as CSSProperties} role="img" aria-label={label ?? `${active} dari ${total} tester aktif`}>
       {Array.from({ length: total }, (_, i) => (
         <i key={i} className={i < Math.min(eligible, total) ? 'full' : i < Math.min(active, total) ? 'on' : ''} />
       ))}

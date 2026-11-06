@@ -130,6 +130,12 @@ img, svg { display: block; }
 /* ---------- KPIs: one sheet, cells divided by 2 px ink rules ---------- */
 .kpis { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); background: var(--putih); border: var(--bw) solid var(--ink); }
 .kpi { padding: var(--s-3) var(--s-4) var(--s-4); min-width: 0; }
+/* KPIs under the app-detail board sit in the 8-column side: 2 × 2, same cell borders as the phone layout. */
+.col-fill > .kpis { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.col-fill > .kpis .kpi + .kpi { border-left: 0; }
+.col-fill > .kpis .kpi:nth-child(n + 3) { border-top: var(--bw) solid var(--ink); }
+.col-fill > .kpis .kpi:nth-child(2n) { border-left: var(--bw) solid var(--ink); }
+.col-fill > .kpis .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; border-left: 0; }
 .kpi + .kpi { border-left: var(--bw) solid var(--ink); }
 .kpi-label { font-size: var(--fs-small); line-height: 1.4; font-weight: 700; }
 .kpi-value { margin-top: var(--s-1); font-size: var(--fs-h1); line-height: 1.2; font-weight: 800; white-space: nowrap; }
@@ -179,7 +185,7 @@ img, svg { display: block; }
 }
 .board-days i { height: 18px; background: var(--putih); }
 .board-days i.on { background: var(--langit); }
-.board-row.eligible .board-days i { background: var(--pandan); }
+.board-days i.count { background: var(--pandan); }
 .board-row.vacant .board-days i { background: var(--surface-soft); }
 .board-tail { text-align: right; font-size: var(--fs-small); white-space: nowrap; }
 .board-row.eligible .board-tail { font-weight: 700; }

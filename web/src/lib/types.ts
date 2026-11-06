@@ -42,6 +42,8 @@ export interface AppDoc {
   // computed by the app_stats view
   activeTesterCount: number
   eligibleCount: number
+  /** days the slot-th most senior active tester has been in: the days Google counts (0 while seats are open) */
+  countedDays: number
   feedbackSentCount: number
   feedbackVerifiedCount: number
   repliedCount: number

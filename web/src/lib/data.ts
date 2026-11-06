@@ -40,6 +40,7 @@ function toApp(r: Row, s: Row | undefined): AppDoc {
     testerSlots: r.tester_slots ?? TARGET_TESTERS,
     activeTesterCount: s?.active_tester_count ?? 0,
     eligibleCount: s?.eligible_count ?? 0,
+    countedDays: s?.counted_days ?? 0,
     feedbackSentCount: s?.feedback_sent_count ?? 0,
     feedbackVerifiedCount: s?.feedback_verified_count ?? 0,
     repliedCount: s?.replied_count ?? 0,
@@ -164,7 +165,7 @@ interface FetchOptions {
 }
 
 /**
- * Loads once, then refetches on window focus (and on Realtime changes for the detail page).
+ * Loads once, then refetches on window focus, after any write RPC (and on Realtime changes for the detail page).
  * `loading` is true only until the first result, so refetches never flash skeletons.
  */
 export function useFetch<T>(load: (() => Promise<T>) | null, initial: T, deps: unknown[], opts: FetchOptions = {}): Live<T> {
@@ -191,6 +192,7 @@ export function useFetch<T>(load: (() => Promise<T>) | null, initial: T, deps: u
     quietRef.current = refetch
     const onFocus = () => { if (document.visibilityState === 'visible') refetch() }
     window.addEventListener('focus', refetch)
+    window.addEventListener(DATA_CHANGED, refetch)
     document.addEventListener('visibilitychange', onFocus)
     const off = opts.liveApp
       ? onAppChange(opts.liveApp, (t) => { if (!opts.liveTables || opts.liveTables.includes(t)) refetch() })
@@ -198,6 +200,7 @@ export function useFetch<T>(load: (() => Promise<T>) | null, initial: T, deps: u
     return () => {
       alive = false
       window.removeEventListener('focus', refetch)
+      window.removeEventListener(DATA_CHANGED, refetch)
       document.removeEventListener('visibilitychange', onFocus)
       off?.()
     }
@@ -346,9 +349,15 @@ export const useTesterSearch = (query: string, enabled: boolean) => {
 
 // ---------- writes (all through RPC) ----------
 
+/** Read-only RPCs: they change nothing, so they must not trigger a refetch (that would loop). */
+const READ_RPCS = new Set(['app_email_listings', 'get_cohort_link'])
+const DATA_CHANGED = 'tb:data-changed'
+
 export async function rpc<T = null>(fn: string, args: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.rpc(fn, args)
   if (error) throw error
+  // A write succeeded: every mounted read hook (e.g. the Tugas saya badge in the nav) refetches quietly.
+  if (!READ_RPCS.has(fn)) window.dispatchEvent(new Event(DATA_CHANGED))
   return data as T
 }
 
@@ -510,17 +519,22 @@ export async function hasOpenTodos(uid: string, now = Date.now()): Promise<boole
   if (await hasEmailListingTodo(uid)) return true
   if (entries.length === 0) return false
   const ids = entries.map((e) => e.appId)
-  const [apps, stats] = await Promise.all([
+  const [apps, stats, updated] = await Promise.all([
     rows<Row[]>(supabase.from('apps').select('id').in('id', ids).eq('deleted', false)),
     rows<Row[]>(supabase.from('app_stats').select('app_id, last_build_at').in('app_id', ids)),
+    rows<Row[]>(supabase.from('check_ins').select('build:builds!inner(app_id, uploaded_at)').eq('kind', 'updated_build').in('tester_id', entries.map((e) => e.id))),
   ])
+  const updatedAt = new Map<string, number>()
+  for (const { build: b } of updated) {
+    const t = ms(b.uploaded_at)
+    if (t != null && t > (updatedAt.get(b.app_id) ?? -Infinity)) updatedAt.set(b.app_id, t)
+  }
   const live = new Set(apps.map((a) => a.id as string))
   const lastBuild = new Map(stats.map((s) => [s.app_id as string, ms(s.last_build_at)]))
   return entries.some((e) => {
     if (!live.has(e.appId)) return false
     if (!e.feedbackSent) return true
-    const b = lastBuild.get(e.appId)
-    return b != null && now - b < 3 * 86_400_000 && b > (e.feedbackSentAt ?? e.optedInAt)
+    return buildTodoOpen(lastBuild.get(e.appId), e.feedbackSentAt ?? e.optedInAt, updatedAt.get(e.appId), now)
   })
 }
 
@@ -576,4 +590,32 @@ export const useEmailListingTodos = (uid: string | null | undefined, myEmailAppI
       : null,
     { pending: new Map<string, number>(), listed: [] as { appId: string; listedAt: number }[] }, [uid, key],
   )
+}
+
+/**
+ * Per app, the newest build (by `uploaded_at`) this member has checked in "Sudah update" on.
+ * A "build baru" to-do is done once this is at least the app's `lastBuildAt`.
+ */
+export const useMyUpdatedBuilds = (uid?: string | null) =>
+  useFetch(
+    uid
+      ? async () => {
+          const r = await rows<Row[]>(
+            supabase.from('check_ins').select('builds!inner(app_id, uploaded_at), testers!inner(user_id)')
+              .eq('kind', 'updated_build').eq('testers.user_id', uid),
+          )
+          const out = new Map<string, number>()
+          for (const { builds: b } of r) {
+            const t = ms(b.uploaded_at)
+            if (t != null && t > (out.get(b.app_id) ?? -Infinity)) out.set(b.app_id, t)
+          }
+          return out
+        }
+      : null,
+    new Map<string, number>(), [uid],
+  )
+
+/** The "build baru" to-do rule, shared by Tugas saya, the nav badge and hasOpenTodos. */
+export function buildTodoOpen(lastBuildAt: number | null | undefined, since: number, updatedAt: number | undefined, now = Date.now()) {
+  return lastBuildAt != null && now - lastBuildAt < 3 * 86_400_000 && lastBuildAt > since && !(updatedAt != null && updatedAt >= lastBuildAt)
 }

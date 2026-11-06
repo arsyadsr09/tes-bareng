@@ -11,3 +11,5 @@ supabase/.env
 .env
 .claude
 shots/*
+# Vitest reports (contain local paths)
+.vitest

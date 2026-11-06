@@ -6,7 +6,7 @@ import { IconPlus, IconSearch } from '../components/icons'
 import { useAuth } from '../lib/auth'
 import { usePageMeta } from '../lib/pageMeta'
 import { errorText, useApps, useEntriesOf } from '../lib/data'
-import { appStatusLabel, daysActive, openSeats, relDay } from '../lib/progress'
+import { appStatusLabel, daysActive, openSeats, relDay, TARGET_DAYS } from '../lib/progress'
 import { useAppCohorts, useBelumTesApps, useCohorts, useMyAssignedApps, type AppCohort, type CohortStatus } from '../lib/cohorts'
 import type { AppDoc, AppStatus, TesterDoc } from '../lib/types'
 
@@ -232,7 +232,7 @@ export function AppList() {
               <tr>
                 <th className="col-id">Aplikasi</th>
                 <th>Tester aktif</th>
-                <th className="num md-hide">Lewat 14 hari</th>
+                <th className="num md-hide">Hari terhitung</th>
                 <th className="num">Feedback di Play</th>
                 <th className="md-hide">Creator-nya menguji</th>
                 <th>Status</th>
@@ -296,15 +296,18 @@ function SlotChip(_: { app: AppDoc }) {
   return null
 }
 
-function SeatCell({ app, eligible }: Row) {
+function SeatCell({ app }: { app: AppDoc }) {
   return (
     <span className="seat-cell">
-      <Seats active={app.activeTesterCount} eligible={eligible} total={app.testerSlots} />
+      <Seats active={app.activeTesterCount} total={app.testerSlots} />
       <span className="seat-count num">{app.activeTesterCount}<small> / {app.testerSlots}</small></span>
       <SlotChip app={app} />
     </span>
   )
 }
+
+/** Days Google counts: all slots active together (app_stats.counted_days), capped at the 14 it needs. */
+const counted = (app: AppDoc) => Math.min(app.countedDays, TARGET_DAYS)
 
 function creatorLine(app: AppDoc) {
   const t = app.creatorTestingCount ?? 0
@@ -314,7 +317,7 @@ function creatorLine(app: AppDoc) {
 }
 
 function DesktopRow({ row, onOpen }: { row: Row; onOpen: () => void }) {
-  const { app, eligible, cohort, assigned, belumTes, own, mine } = row
+  const { app, cohort, assigned, belumTes, own, mine } = row
   const c = creatorLine(app)
   return (
     <tr className="clickable" onClick={onOpen}>
@@ -328,8 +331,8 @@ function DesktopRow({ row, onOpen }: { row: Row; onOpen: () => void }) {
         <span>{app.creatorName} · didaftarkan {relDay(app.createdAt)}{cohort && <> · {cohort.name}</>}</span>
         <span className="md-show">Creator-nya menguji {c.t} aplikasi <Badge tier={app.creatorBadgeTier} size="sm" /></span>
       </td>
-      <td className="cell-2"><SeatCell app={app} eligible={eligible} /><span className="md-show">{eligible} lewat 14 hari</span></td>
-      <td className="num md-hide"><b>{eligible}</b><span className="of"> / {app.testerSlots}</span></td>
+      <td className="cell-2"><SeatCell app={app} /><span className="md-show num">{counted(app)} / {TARGET_DAYS} hari terhitung</span></td>
+      <td className="num md-hide"><b>{counted(app)}</b><span className="of"> / {TARGET_DAYS}</span></td>
       <td className="num">
         {app.feedbackSentCount === 0 ? <span className="dash">0</span> : <><b>{app.feedbackSentCount}</b><span className="muted fb-ver"> · {app.feedbackVerifiedCount} terverifikasi</span></>}
       </td>
@@ -345,16 +348,16 @@ function DesktopRow({ row, onOpen }: { row: Row; onOpen: () => void }) {
 }
 
 function PhoneRow({ row }: { row: Row }) {
-  const { app, eligible, cohort, assigned, belumTes, own, mine } = row
+  const { app, cohort, assigned, belumTes, own, mine } = row
   const c = creatorLine(app)
   return (
     <Link to={`/apps/${app.id}`} className="mrow">
       <span className="l1">{app.name}</span>
       <span className="r1 num">{app.activeTesterCount}<span className="of"> / {app.testerSlots}</span></span>
       <span className="l2">
-        <Seats active={app.activeTesterCount} eligible={eligible} total={app.testerSlots} />
+        <Seats active={app.activeTesterCount} total={app.testerSlots} />
         <SlotChip app={app} />
-        <span>{eligible} lewat 14 hari</span>
+        <span className="num">{counted(app)} / {TARGET_DAYS} hari terhitung</span>
         <span>feedback {app.feedbackSentCount}</span>
       </span>
       <span className="l2">

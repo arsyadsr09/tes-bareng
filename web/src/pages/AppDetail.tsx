@@ -11,7 +11,7 @@ import { AssignedChip } from '../components/cohortBits'
 import { useAuth } from '../lib/auth'
 import { useMyAssignedApps } from '../lib/cohorts'
 import { usePageMeta } from '../lib/pageMeta'
-import { api, errorCode, markEmailListed, updateTesterAsCreator, useApp, useBadgesOf, useBuilds, useEmailListings, useTesters } from '../lib/data'
+import { api, errorCode, markEmailListed, updateTesterAsCreator, useApp, useBadgesOf, useBuilds, useEmailListings, useMyEmailListing, useTesters } from '../lib/data'
 import { checkIn, milestones, useCheckIns, type CheckIn, type Milestone } from '../lib/checkins'
 import {
   computeProgress, daysActive, fmtDate, fmtDateTime, fmtDayHeading, inDays, isNewBuild, isoDate, openSeats, relTime, TARGET_BUILDS, TARGET_DAYS, TARGET_TESTERS,
@@ -35,6 +35,8 @@ export function AppDetail() {
   const myAssigned = useMyAssignedApps(user?.uid)
   const toast = useToast()
   const [dialog, setDialog] = useState<DialogKind>(null)
+  // Placed only once app, testers and builds are in, so the KPI block does not jump after first paint.
+  const kpiPlace = useKpiPlacement(!!app.data && !testers.loading && !builds.loading)
   usePageMeta(app.data && !app.data.deleted ? app.data.name : 'Aplikasi', app.data && !app.data.deleted ? app.data.description : undefined)
 
   const progress = useMemo(
@@ -43,6 +45,9 @@ export function AppDetail() {
   )
   // Called before the early returns (hook order); only loads for the member's own Active entry.
   const ownActive = user ? testers.data.find((t) => t.uid === user.uid && t.status === 'active') : undefined
+  // Email-list apps (ADR-011): the header follows the member's own request (ask → wait → opt in).
+  const emailFlow = !!app.data && app.data.testerMethod === 'email_list' && !!user && app.data.creatorUid !== user.uid && !isAdmin
+  const myListing = useMyEmailListing(emailFlow ? id : undefined, user?.uid)
   const flow = useCheckInFlow(id, user && app.data && !app.data.deleted && app.data.creatorUid !== user.uid && !isAdmin ? ownActive : undefined, builds.data.map((b) => b.id).join(','))
 
   if (app.error) return <ErrorBox text="Aplikasi gagal dimuat. Periksa koneksi, lalu coba lagi." onRetry={app.retry} />
@@ -100,6 +105,34 @@ export function AppDetail() {
     const storeOverflow: MenuItem[] = a.storeUrl ? [{ label: 'Halaman Play Store', href: a.storeUrl }] : []
     storeOverflow.push({ label: 'Bagikan ke WhatsApp', onSelect: () => shareToWhatsApp(a.name, openSeats(a), a.id) })
     if (mine?.status === 'removed') return { secondary: [optInAction], overflow: storeOverflow }
+    if (a.testerMethod === 'email_list') {
+      // The opt-in link only works once the creator has added this member's email in Play Console.
+      const l = myListing.data
+      if (user && myListing.loading) return { secondary: [], overflow: storeOverflow }
+      if (!l) {
+        return {
+          primary: { label: 'Minta ditambahkan', onClick: () => needLogin('join') },
+          secondary: [],
+          overflow: storeOverflow,
+          note: user
+            ? 'Link opt-in bisa dibuka setelah creator menambahkan email Anda di Play Console.'
+            : 'Anda diminta masuk dengan Google dulu. Link opt-in bisa dibuka setelah creator menambahkan email Anda.',
+        }
+      }
+      if (l.listedAt == null) {
+        return {
+          secondary: [{ label: 'Lihat permintaan', onClick: () => setDialog('join') }],
+          overflow: storeOverflow,
+          note: `Menunggu creator menambahkan email Anda · diminta ${fmtDate(l.requestedAt)}.`,
+        }
+      }
+      return {
+        primary: { label: 'Gabung sebagai tester', onClick: () => setDialog('join') },
+        secondary: [optInAction],
+        overflow: storeOverflow,
+        note: 'Email Anda sudah ditambahkan. Opt-in dengan akun Google yang sama.',
+      }
+    }
     return {
       primary: { label: 'Gabung sebagai tester', onClick: () => needLogin('join') },
       secondary: [optInAction],
@@ -115,7 +148,8 @@ export function AppDetail() {
 
       <Finding app={a} p={progress} loading={loading} description={a.description} />
 
-      {isNewBuild(a) && builds.data[0] && (
+      {/* Hidden for a tester who already checked in "Sudah update" on this build (same rule as Tugas saya). */}
+      {isNewBuild(a) && builds.data[0] && !(mine?.status === 'active' && flow.isDone('updated_build', builds.data[0].id)) && (
         <div className="notice info" role="status">
           <span><b>Build baru {builds.data[0].versionName}</b> · {relTime(builds.data[0].uploadedAt)}. Perbarui aplikasi dari Play Store, lalu uji lagi.</span>
           <span className="spacer" />
@@ -124,20 +158,24 @@ export function AppDetail() {
       )}
 
       <div className="grid">
-        <section className="panel span-8" aria-labelledby="board-h">
-          <header>
-            <h2 id="board-h" className="num">Menuju {progress.target} tester × 14 hari</h2>
-            <BoardLegend />
-          </header>
-          {testers.error ? <ErrorBox text="Daftar tester gagal dimuat. Coba lagi sebentar lagi." onRetry={testers.retry} /> : <Board seats={progress.seats} loading={testers.loading} total={progress.target} />}
-        </section>
+        {/* KPIs move under the board only when the aside is clearly taller (few seats); otherwise full width below both. */}
+        <div className="span-8 col-fill">
+          <section className="panel" aria-labelledby="board-h" ref={kpiPlace.board}>
+            <header>
+              <h2 id="board-h" className="num">Menuju {progress.target} tester × 14 hari</h2>
+              <BoardLegend />
+            </header>
+            {testers.error ? <ErrorBox text="Daftar tester gagal dimuat. Coba lagi sebentar lagi." onRetry={testers.retry} /> : <Board seats={progress.seats} loading={testers.loading} total={progress.target} counted={progress.testDay} />}
+          </section>
+          {kpiPlace.beside && <Kpis p={progress} app={a} loading={loading} />}
+        </div>
 
-        <aside className="span-4 col-fill">
+        <aside className="span-4 col-fill" ref={kpiPlace.aside}>
           <InfoPanel app={a} p={progress} mine={mine} isCreator={isCreator} flow={flow} />
           <CreatorCard app={a} />
         </aside>
 
-        <Kpis p={progress} app={a} loading={loading} />
+        {!kpiPlace.beside && <Kpis p={progress} app={a} loading={loading} wide />}
 
         <TesterTable
           app={a} testers={testers.data} loading={testers.loading} isCreator={isCreator} myUid={user?.uid}
@@ -190,8 +228,10 @@ function RecordHead({ app, p, loading, actions, assigned }: {
     io.observe(el)
     return () => io.disconnect()
   }, [])
-  const count = loading ? <Skel w={56} h={24} /> : <><b>{p.eligible}</b><small> / {p.target}</small></>
-  const seatsLabel = `${p.eligible} dari ${p.target} tester sudah 14 hari, ${p.active} aktif`
+  // Google counts a day only while all slots are active together: the same clock as the board's pandan columns.
+  const counted = Math.min(p.testDay, TARGET_DAYS)
+  const count = loading ? <Skel w={56} h={24} /> : <><b>{counted}</b><small> / {TARGET_DAYS}</small></>
+  const daysLabel = `${counted} dari ${TARGET_DAYS} hari terhitung, ${p.active} tester aktif dari ${p.target} kursi`
   return (
     <>
       <header ref={head} className="record-head">
@@ -212,9 +252,9 @@ function RecordHead({ app, p, loading, actions, assigned }: {
           </div>
         </div>
         <div className="rh-progress">
-          <p className="rh-count num">{count}<span className="rh-label">tester lulus 14 hari</span></p>
-          <Seats active={p.active} eligible={p.eligible} total={p.target} className="wide" label={seatsLabel} />
-          <p className="rh-sub num">{p.active >= p.target ? `${p.active} aktif · kursi penuh (${p.target})` : `${p.active} aktif dari ${p.target} kursi`}</p>
+          <p className="rh-count num">{count}<span className="rh-label">hari terhitung</span></p>
+          <Seats active={counted} eligible={counted} total={TARGET_DAYS} className="wide" label={daysLabel} />
+          <p className="rh-sub num">{p.active >= p.target ? `${p.active} aktif · kursi penuh (${p.target})` : `${p.active} aktif dari ${p.target} kursi · hari mulai dihitung saat kursi penuh`}</p>
         </div>
         <div className="rh-actions">
           {actions.primary && <ActionButton a={actions.primary} primary />}
@@ -229,7 +269,7 @@ function RecordHead({ app, p, loading, actions, assigned }: {
       </header>
       <div className={`record-bar ${stuck ? 'show' : ''}`} inert={!stuck} aria-hidden={!stuck}>
         <span className="rb-name">{app.name}</span>
-        <span className="rb-count num"><b>{p.eligible}</b> / {p.target}<span className="sr-only"> tester lulus 14 hari</span></span>
+        <span className="rb-count num"><b>{Math.min(p.testDay, TARGET_DAYS)}</b> / {TARGET_DAYS}<span className="sr-only"> hari terhitung</span></span>
         {actions.primary && <ActionButton a={actions.primary} primary small />}
       </div>
     </>
@@ -238,7 +278,6 @@ function RecordHead({ app, p, loading, actions, assigned }: {
 
 function Finding({ app, p, loading, description }: { app: AppDoc; p: Progress; loading: boolean; description: string }) {
   if (loading) return <div className="finding"><Skel w={420} h={20} /></div>
-  const soonest = p.seats.filter((s) => !s.eligible).map((s) => TARGET_DAYS - s.days)[0]
   // ADR-012 §4: what Google's 12 still needs from outside; community testers beyond the slots count too.
   const outside = p.target < TARGET_TESTERS ? TARGET_TESTERS - Math.max(p.active, p.target) : 0
   let text: string
@@ -246,12 +285,12 @@ function Finding({ app, p, loading, description }: { app: AppDoc; p: Progress; l
   else if (p.ready) text = `Siap ajukan akses produksi: ${p.eligible} tester sudah 14 hari berturut-turut.`
   else if (p.active < p.target) {
     const need = p.target - p.active
-    text = `Butuh ${need} tester aktif lagi.` + (soonest != null ? ` Tester terlama lulus 14 hari ${inDays(soonest)}.` : ' Belum ada yang mendaftar.')
+    // Not ready until the target-th seat is filled and then runs 14 days; the soonest tester's date unlocks nothing.
+    text = `Butuh ${need} tester aktif lagi.` + (p.active > 0 ? ` Paling cepat siap 14 hari setelah kursi ke-${p.target} terisi.` : ' Belum ada yang mendaftar.')
   } else {
     // Ready only when the target-th most senior tester reaches 14 days, not the next one to pass.
-    const last = p.seats[p.target - 1]
-    text = `Kursi sudah terisi; tinggal ${p.target - p.eligible} tester lagi lulus 14 hari.` +
-      (last ? ` Siap ajukan paling cepat ${inDays(TARGET_DAYS - last.days)}, jika ${p.target} tester teratas tetap aktif.` : '')
+    text = `Kursi sudah terisi; ${p.testDay} dari ${TARGET_DAYS} hari sudah terhitung.` +
+      ` Siap ajukan paling cepat ${inDays(TARGET_DAYS - p.testDay)}, jika ${p.target} tester teratas tetap aktif.`
   }
   return (
     <div className="finding">
@@ -364,7 +403,7 @@ function InfoPanel({ app, p, mine, isCreator, flow }: { app: AppDoc; p: Progress
       {mine?.status === 'left' && <p className="muted">Anda berhenti pada {fmtDate(mine.leftAt)}. Gabung lagi memulai hitungan 14 hari dari awal.</p>}
       {guide}
       {app.testerMethod === 'email_list'
-        ? <p className="muted small">Aplikasi ini memakai daftar email: minta ditambahkan, tunggu creator menambahkan email Anda, lalu opt-in dan pasang aplikasinya. Mulai dari tombol Gabung sebagai tester di atas.</p>
+        ? <p className="muted small">Aplikasi ini memakai daftar email: minta ditambahkan, tunggu creator menambahkan email Anda, lalu opt-in dan pasang aplikasinya. Mulai dari tombol di atas.</p>
         : <p className="muted small">Butuh 3 langkah: gabung grup, buka link opt-in, pasang aplikasinya. Mulai dari tombol Gabung sebagai tester di atas.</p>}
     </section>
   )
@@ -575,20 +614,37 @@ function LeaveDialog({ open, onClose, app, days }: { open: boolean; onClose: () 
   )
 }
 
-function Kpis({ p, app, loading }: { p: Progress; app: AppDoc; loading: boolean }) {
+// Where the KPI block goes on wide screens: under the board (2 × 2) when the aside outgrows the board by more than
+// about half that block, so either placement leaves the smaller hole. Board and aside heights do not depend on it.
+const KPI_BESIDE_MIN = 130
+function useKpiPlacement(ready: boolean) {
+  const board = useRef<HTMLElement>(null)
+  const aside = useRef<HTMLElement>(null)
+  const [beside, setBeside] = useState(false)
+  useEffect(() => {
+    const b = board.current
+    const s = aside.current
+    if (!ready || !b || !s || typeof ResizeObserver === 'undefined') return
+    const wide = window.matchMedia('(min-width: 1024px)')
+    const check = () => setBeside(wide.matches && s.offsetHeight - b.offsetHeight > KPI_BESIDE_MIN)
+    const ro = new ResizeObserver(check)
+    ro.observe(b)
+    ro.observe(s)
+    wide.addEventListener('change', check)
+    check()
+    return () => { ro.disconnect(); wide.removeEventListener('change', check) }
+  }, [ready])
+  return { board, aside, beside }
+}
+
+function Kpis({ p, app, loading, wide }: { p: Progress; app: AppDoc; loading: boolean; wide?: boolean }) {
   const v = (x: ReactNode) => (loading ? <Skel w={64} h={24} /> : x)
   return (
-    <section className="kpis span-12" aria-label="Ringkasan keterlibatan">
+    <section className={wide ? 'kpis span-12' : 'kpis'} aria-label="Ringkasan keterlibatan">
       <div className="kpi">
         <div className="kpi-label">Tester aktif</div>
         <div className="kpi-value num">{v(<>{p.active}<small> / {p.target}</small></>)}</div>
         <div style={{ marginTop: 'var(--s-2)' }}><Bar value={p.active} max={p.target} label="Tester aktif" /></div>
-      </div>
-      <div className="kpi">
-        <div className="kpi-label">Hari uji</div>
-        <div className="kpi-value num">{v(<>{p.testDay}<small> / {TARGET_DAYS}</small></>)}</div>
-        <div style={{ marginTop: 'var(--s-2)' }}><Bar value={Math.min(p.testDay, TARGET_DAYS)} max={TARGET_DAYS} label="Hari uji" /></div>
-        {p.active < p.target && <p className="note num">Mulai dihitung saat {p.target} tester aktif</p>}
       </div>
       <div className="kpi">
         <div className="kpi-label">Feedback di Play</div>

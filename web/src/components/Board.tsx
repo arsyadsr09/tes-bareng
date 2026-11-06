@@ -7,7 +7,7 @@ interface Seat { tester: TesterDoc; days: number; eligible: boolean }
 export function BoardLegend() {
   return (
     <div className="legend" aria-hidden="true">
-      <span><i className="pandan" />14 hari tercapai</span>
+      <span><i className="pandan" />Hari terhitung (semua kursi aktif)</span>
       <span><i className="langit" />Hari berjalan</span>
       <span><i className="soft" />Kursi kosong</span>
     </div>
@@ -15,8 +15,10 @@ export function BoardLegend() {
 }
 
 /** The slots × 14 board (12 by default, ADR-012): one seat per slot down, fourteen days across, ruled like a sheet.
- *  A full pandan row is a tester Google counts; the tail repeats it as "✓ 14 hari". */
-export function Board({ seats, loading, total = TARGET_TESTERS }: { seats: Seat[]; loading: boolean; total?: number }) {
+ *  Google counts a day only when every seat is active at once, so pandan fills the first `counted` columns of
+ *  every row (the days of the last seat, 0 while seats are open); langit is a tester's own days beyond that.
+ *  The tail still shows each tester's own days, "✓" once they pass 14. */
+export function Board({ seats, loading, total = TARGET_TESTERS, counted = 0 }: { seats: Seat[]; loading: boolean; total?: number; counted?: number }) {
   const top = seats.slice(0, total)
   const empty = Math.max(0, total - top.length)
   const days = Array.from({ length: TARGET_DAYS }, (_, i) => i)
@@ -32,7 +34,7 @@ export function Board({ seats, loading, total = TARGET_TESTERS }: { seats: Seat[
               <span>{s.tester.displayName}</span>
             </span>
             <span className="board-days" aria-hidden="true">
-              {days.map((d) => <i key={d} className={d < s.days ? 'on' : ''} />)}
+              {days.map((d) => <i key={d} className={d < counted ? 'count' : d < s.days ? 'on' : ''} />)}
             </span>
             <span className="board-tail num">{s.eligible && <span aria-hidden="true">✓ </span>}{Math.min(s.days, 999)}<span className="unit"> hari</span></span>
           </div>
