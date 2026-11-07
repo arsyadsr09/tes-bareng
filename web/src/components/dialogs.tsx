@@ -34,7 +34,7 @@ export function JoinDialog({ open, onClose, app, rejoin }: { open: boolean; onCl
 function JoinForm({ onClose, app, rejoin }: { onClose: () => void; app: AppDoc; rejoin?: boolean }) {
   const toast = useToast()
   const [c, setC] = useState({ joinedGroup: false, optedIn: false, installed: false })
-  const { busy, err, run } = useSubmit(() => { toast(`Anda tercatat sebagai tester ${app.name}. Hitungan 14 hari dimulai hari ini.`); onClose() })
+  const { busy, err, run } = useSubmit(() => { toast(`Anda tercatat sebagai tester ${app.name}. Hari aktif Anda dihitung mulai hari ini.`); onClose() })
   const all = c.joinedGroup && c.optedIn && c.installed
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -45,7 +45,7 @@ function JoinForm({ onClose, app, rejoin }: { onClose: () => void; app: AppDoc; 
       <form onSubmit={submit}>
         <div className="sheet-body">
           <h2>Gabung sebagai tester {app.name}</h2>
-          {rejoin && <p className="muted">Hitungan 14 hari dimulai lagi dari hari ini.</p>}
+          {rejoin && <p className="muted">Hari aktif Anda dihitung lagi dari nol mulai hari ini.</p>}
           <p className="lede">Google hanya menghitung tester yang benar-benar opt-in. Selesaikan tiga langkah ini di HP Anda dulu.</p>
           <div>
             <label className="check">
@@ -61,7 +61,7 @@ function JoinForm({ onClose, app, rejoin }: { onClose: () => void; app: AppDoc; 
             <label className="check">
               <input type="checkbox" checked={c.installed} onChange={(e) => setC({ ...c, installed: e.target.checked })} />
               <span><span className="t">Saya sudah memasang aplikasinya</span>
-                <span className="d">Biarkan terpasang minimal 14 hari berturut-turut.</span></span>
+                <span className="d">Biarkan terpasang sampai app ini lulus 14 hari Google, dihitung sejak semua kursi terisi.</span></span>
             </label>
           </div>
           {app.feedbackGuide && (
@@ -96,7 +96,7 @@ function EmailJoinForm({ onClose, app, rejoin }: { onClose: () => void; app: App
   const [consent, setConsent] = useState(false)
   const [c, setC] = useState({ optedIn: false, installed: false })
   const asked = useSubmit(() => listing.refresh())
-  const joined = useSubmit(() => { toast(`Anda tercatat sebagai tester ${app.name}. Hitungan 14 hari dimulai hari ini.`); onClose() })
+  const joined = useSubmit(() => { toast(`Anda tercatat sebagai tester ${app.name}. Hari aktif Anda dihitung mulai hari ini.`); onClose() })
   const l = listing.data
   const step = !l ? 'ask' : l.listedAt == null ? 'wait' : 'join'
   const all = c.optedIn && c.installed
@@ -114,7 +114,7 @@ function EmailJoinForm({ onClose, app, rejoin }: { onClose: () => void; app: App
       <form onSubmit={submit}>
         <div className="sheet-body">
           <h2>Gabung sebagai tester {app.name}</h2>
-          {rejoin && <p className="muted">Hitungan 14 hari dimulai lagi dari hari ini.</p>}
+          {rejoin && <p className="muted">Hari aktif Anda dihitung lagi dari nol mulai hari ini.</p>}
           <p className="lede">Aplikasi ini memakai daftar email di Play Console, bukan Google Group. Creator perlu menambahkan email Anda dulu sebelum Anda bisa opt-in.</p>
           <ol className="steps" aria-label="Langkah">
             <li aria-current={step === 'ask' ? 'step' : undefined}><span className="num" aria-hidden="true">{step !== 'ask' ? '✓' : '1'}</span><span>Minta ditambahkan{step !== 'ask' && <span className="muted small"> · selesai</span>}</span></li>
@@ -142,7 +142,7 @@ function EmailJoinForm({ onClose, app, rejoin }: { onClose: () => void; app: App
               <label className="check">
                 <input type="checkbox" checked={c.installed} onChange={(e) => setC({ ...c, installed: e.target.checked })} />
                 <span><span className="t">Saya sudah memasang aplikasinya</span>
-                  <span className="d">Biarkan terpasang minimal 14 hari berturut-turut.</span></span>
+                  <span className="d">Biarkan terpasang sampai app ini lulus 14 hari Google, dihitung sejak semua kursi terisi.</span></span>
               </label>
             </div>
           )}
@@ -317,7 +317,7 @@ export function ManualTesterDialog({ open, onClose, app }: { open: boolean; onCl
               onChange={(e) => setF({ ...f, email: e.target.value })} onBlur={v.blur('email')}
               {...fieldAria('m-email', { hint: true, error: v.errors.email })} />
           </Field>
-          <Field id="m-optedInAt" label="Opt-in sejak" hint="Hitungan 14 hari dimulai dari tanggal ini." error={v.errors.optedInAt}>
+          <Field id="m-optedInAt" label="Opt-in sejak" hint="Hari aktif tester ini dihitung dari tanggal ini." error={v.errors.optedInAt}>
             <input type="date" className="input" max={todayIso()} value={f.optedInAt}
               onChange={(e) => setF({ ...f, optedInAt: e.target.value })} onBlur={v.blur('optedInAt')}
               {...fieldAria('m-optedInAt', { hint: true, error: v.errors.optedInAt })} />

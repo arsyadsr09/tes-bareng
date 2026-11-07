@@ -73,7 +73,7 @@ Requires Node 22+. Screenshots need Chrome/Edge/Chromium (Playwright's Chromium 
 - Edge Functions: only one, `send-reminders`, for the daily email digest via Gmail SMTP (ADR-006, PRD §11.1), because Postgres cannot speak SMTP. Everything else stays in SQL.
 - Hosting: **Vercel** (ADR-003, accepted 2026-11-02; the site is on Vercel). `web/vercel.json` rewrites all routes to `index.html`. No `web/public/_redirects`.
 - Stack moved from Firebase on 2026-10-31 (ADR-002): Firebase needs the Blaze plan (credit card) to deploy Cloud Functions; Supabase's free plan does not.
-- Development runs against the local Supabase stack (Docker), or against the cloud dev project `tesbareng-dev` (ref `wseoosidbkltxbgzwgsd`, created 2026-11-04 with the owner's approval) when Docker is unavailable. Point the web app at it with `web/.env.local` (gitignored). Never create other remote projects, set secrets, push migrations or deploy without asking.
+- Development runs against the local Supabase stack (Docker), or against a cloud Supabase dev project when Docker is unavailable (never the production project). The web app points at it through `web/.env.local` (gitignored); read the project URL from there, never from this file. Never create other remote projects, set secrets, push migrations or deploy without asking.
 
 ## Run it (local Supabase only)
 
@@ -90,6 +90,8 @@ Requires Node 22+. Screenshots need Chrome/Edge/Chromium (Playwright's Chromium 
 ## Commits
 
 Every commit uses [Conventional Commits](https://www.conventionalcommits.org): `<type>(<optional scope>)!: <description>`, subject ≤ 100 chars. Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Scopes are optional, e.g. `web`, `db`, `cohort`, `auth`. Use `!` (and a `BREAKING CHANGE:` footer) for breaking changes. The `.githooks/commit-msg` hook rejects anything else; `npm install` enables it (`core.hooksPath`). Do not bypass it with `--no-verify`.
+
+Nothing tied to one person or one machine goes into git: Supabase project refs or URLs of a dev project, keys, personal emails, local paths (`/Users/...`, `/Volumes/...`), generated reports. Such values live in gitignored files (`web/.env.local`, `supabase/.env`); docs use placeholders like `<ref>`. Shared project values (the production site URL, the community Google Group, seeded sample members) are fine.
 
 ## Hard rules (security and data integrity)
 

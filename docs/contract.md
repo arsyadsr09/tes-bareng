@@ -103,6 +103,7 @@ Both views use `security_invoker = true`, so the RLS of the base tables applies.
 | `build_count`, `last_build_at` | count and max `uploaded_at` of the app's builds |
 | `creator_testing_count`, `creator_feedback_sent_count`, `creator_feedback_verified_count` | the creator's `profile_stats` (FR-27b) |
 | `creator_badge_tier` | the creator's `profile_stats.badge_tier` (FR-27j) |
+| `counted_days` | whole days the `tester_slots`-th most senior active tester has been opted in (0 while fewer active testers than slots): the days Google counts, since it needs all testers active together. The app list shows it; app detail computes the same number from the tester rows. |
 
 `profile_stats` (one row per profile), entries on soft-deleted apps never count:
 

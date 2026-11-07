@@ -254,6 +254,27 @@ describe("app_stats", () => {
     });
   });
 
+  it("counted_days is the slot-th most senior active tester's days, 0 while seats are open", async () => {
+    const appId = await newApp(creator.id, { tester_slots: 2 });
+    expect(await stats(appId)).toMatchObject({ counted_days: 0 });
+    await must(
+      service.from("testers").insert([
+        entry(appId, { opted_in_at: ago(20 * DAY_MS) }),
+        entry(appId, { status: "left", opted_in_at: ago(15 * DAY_MS), left_at: ago(DAY_MS) }),
+      ], { defaultToNull: false }),
+    );
+    // One active tester for two slots: nothing counts yet, however long the first has been in.
+    expect(await stats(appId)).toMatchObject({ counted_days: 0 });
+    await must(
+      service.from("testers").insert([
+        entry(appId, { opted_in_at: ago(4 * DAY_MS + 60_000) }),
+        entry(appId, { opted_in_at: ago(DAY_MS) }),
+      ], { defaultToNull: false }),
+    );
+    // Seniority 20, 4, 1 days; the 2nd seat sets the clock. Left testers never count.
+    expect(await stats(appId)).toMatchObject({ active_tester_count: 3, counted_days: 4 });
+  });
+
   it("build_count and last_build_at use the max uploaded_at, not insertion order", async () => {
     const appId = await newApp();
     const now = Date.now();

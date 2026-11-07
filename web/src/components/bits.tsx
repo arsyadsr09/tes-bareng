@@ -39,9 +39,15 @@ export const StatusPill = ({ status }: { status: AppStatus }) => (
   <Chip tone={APP_TONE[status][0]} glyph={APP_TONE[status][1]}>{appStatusLabel[status]}</Chip>
 )
 
-/** Tester status: eligible (14+ days) is pandan, active is langit (opted in), the rest stay white. */
-export function TesterChip({ t, days }: { t: TesterDoc; days: number }) {
-  if (t.status === 'active' && days >= TARGET_DAYS) return <Chip tone="pandan" glyph="✓">Lulus 14 hari</Chip>
+/** Tester status: eligible (14+ days) is pandan, active is langit (opted in), the rest stay white.
+ *  A tester's own 14 days (badges, reciprocity) can end before the app's counted 14 days (all seats at once),
+ *  so "Lulus" is said only once the app passed too; before that the chip asks them to stay. `appPassed`
+ *  undefined (admin list, no app clock at hand) shows the plain day mark. */
+export function TesterChip({ t, days, appPassed }: { t: TesterDoc; days: number; appPassed?: boolean }) {
+  if (t.status === 'active' && days >= TARGET_DAYS) {
+    const label = appPassed === undefined ? '14 hari' : appPassed ? 'Lulus 14 hari' : '14 hari · tetap ikut'
+    return <Chip tone="pandan" glyph="✓">{label}</Chip>
+  }
   if (t.status === 'active') return <Chip tone="langit" glyph="→">{testerStatusLabel.active}</Chip>
   return <Chip glyph={t.status === 'removed' ? '×' : '—'}>{testerStatusLabel[t.status]}</Chip>
 }
@@ -56,9 +62,9 @@ export function FeedbackChip({ t, className }: { t: Pick<TesterDoc, 'feedbackSen
 // ---------- progress: counted cells, not a smooth bar ----------
 
 /** One cell per tester slot (12 by default, ADR-012): eligible (≥14 days) pandan, active langit, empty white. */
-export function Seats({ active, eligible, total = TARGET_TESTERS, label, className }: { active: number; eligible: number; total?: number; label?: string; className?: string }) {
+export function Seats({ active, eligible = 0, total = TARGET_TESTERS, label, className }: { active: number; eligible?: number; total?: number; label?: string; className?: string }) {
   return (
-    <span className={`seats ${className ?? ''}`} style={{ '--n': total } as CSSProperties} role="img" aria-label={label ?? `${active} dari ${total} tester aktif, ${eligible} sudah 14 hari`}>
+    <span className={`seats ${className ?? ''}`} style={{ '--n': total } as CSSProperties} role="img" aria-label={label ?? `${active} dari ${total} tester aktif`}>
       {Array.from({ length: total }, (_, i) => (
         <i key={i} className={i < Math.min(eligible, total) ? 'full' : i < Math.min(active, total) ? 'on' : ''} />
       ))}

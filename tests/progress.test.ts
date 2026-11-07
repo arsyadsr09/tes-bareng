@@ -39,6 +39,7 @@ const app = (over: Partial<AppDoc> = {}): AppDoc => ({
   testerSlots: 12,
   activeTesterCount: 0,
   eligibleCount: 0,
+  countedDays: 0,
   feedbackSentCount: 0,
   feedbackVerifiedCount: 0,
   repliedCount: 0,

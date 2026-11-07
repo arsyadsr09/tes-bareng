@@ -5,12 +5,10 @@ import { IconPlus } from '../components/icons'
 import { useAuth } from '../lib/auth'
 import { COMMUNITY_GROUP_URL } from '../lib/community'
 import { usePageMeta } from '../lib/pageMeta'
-import { errorText, setEmailReminders, useApps, useAppsBy, useEmailListingTodos, useEntriesOf, usePublicProfile } from '../lib/data'
-import { useAdminRequestTodos, useMyAssignedApps, useMyObligations } from '../lib/cohorts'
-import { daysActive, isNewBuild, relDay, openSeats, TARGET_DAYS } from '../lib/progress'
-import type { AppDoc, TesterDoc } from '../lib/types'
-
-interface Todo { entry?: TesterDoc; app: AppDoc; kind: 'join' | 'listed' | 'emails' | 'build' | 'feedback'; count?: number }
+import { errorText, setEmailReminders, usePublicProfile } from '../lib/data'
+import { useMyObligations } from '../lib/cohorts'
+import { useMyTodos } from '../lib/todos'
+import { daysActive, relDay, openSeats, TARGET_DAYS } from '../lib/progress'
 
 export function Me() {
   const { user, isAdmin, ready, signIn } = useAuth()
@@ -30,58 +28,9 @@ export function Me() {
 }
 
 function MeSignedIn({ uid, isAdmin }: { uid: string; isAdmin: boolean }) {
-  const entries = useEntriesOf(uid)
-  const apps = useApps()
-  const myApps = useAppsBy(uid)
+  const { entries, apps, myApps, requests, testing, todos, total, loading } = useMyTodos(uid, isAdmin)
   const profile = usePublicProfile(uid)
-  const assignedApps = useMyAssignedApps(uid)
   const obligations = useMyObligations(uid)
-  const myEmailAppIds = useMemo(() => myApps.data.filter((a) => a.testerMethod === 'email_list').map((a) => a.id), [myApps.data])
-  const listings = useEmailListingTodos(uid, myEmailAppIds)
-  // ADR-013: admins decide creators' requests to bring an app into a Forming cohort.
-  const requests = useAdminRequestTodos(isAdmin)
-  const byId = useMemo(() => new Map(apps.data.map((a) => [a.id, a])), [apps.data])
-  const loading = entries.loading || apps.loading
-
-  const testing = useMemo(
-    () => entries.data
-      .filter((e) => e.status === 'active' && byId.has(e.appId))
-      .map((entry) => ({ entry, app: byId.get(entry.appId)! }))
-      .sort((a, b) => daysActive(b.entry) - daysActive(a.entry)),
-    [entries.data, byId],
-  )
-
-  const todos = useMemo<Todo[]>(() => {
-    const out: Todo[] = []
-    const testingIds = new Set(entries.data.filter((e) => e.status === 'active').map((e) => e.appId))
-    for (const [appId] of assignedApps.data) {
-      if (!testingIds.has(appId)) {
-        const app = byId.get(appId)
-        if (app) out.push({ app, kind: 'join' })
-      }
-    }
-    // ADR-011: the creator added my email, so I can opt in now; and creators' requests still to paste.
-    for (const { appId } of listings.data.listed) {
-      const app = byId.get(appId)
-      if (app && !out.some((t) => t.app.id === appId)) out.push({ app, kind: 'listed' })
-    }
-    for (const [appId, count] of listings.data.pending) {
-      const app = byId.get(appId)
-      if (app) out.push({ app, kind: 'emails', count })
-    }
-    for (const { entry, app } of testing) {
-      const since = entry.feedbackSentAt ?? entry.optedInAt
-      if (isNewBuild(app) && app.lastBuildAt && app.lastBuildAt > since) out.push({ entry, app, kind: 'build' })
-      else if (!entry.feedbackSent) out.push({ entry, app, kind: 'feedback' })
-    }
-    const PRIORITY = { join: 0, listed: 0, emails: 1, build: 2, feedback: 3 } as const
-    return out.sort((a, b) => {
-      const pd = PRIORITY[a.kind] - PRIORITY[b.kind]
-      if (pd !== 0) return pd
-      if (a.entry && b.entry) return daysActive(b.entry) - daysActive(a.entry)
-      return 0
-    })
-  }, [testing, assignedApps.data, byId, entries.data, listings.data])
 
   const suggestions = useMemo(() => {
     const mineIds = new Set(entries.data.map((e) => e.appId))
@@ -99,7 +48,7 @@ function MeSignedIn({ uid, isAdmin }: { uid: string; isAdmin: boolean }) {
                   {suggestions.map((a) => (
                     <li className="row-line" key={a.id}>
                       <span className="grow cell-2"><Link to={`/apps/${a.id}`}><b>{a.name}</b></Link><span>{a.creatorName}</span></span>
-                      <Seats active={a.activeTesterCount} eligible={a.eligibleCount} total={a.testerSlots} className="hide-sm" />
+                      <Seats active={a.activeTesterCount} total={a.testerSlots} className="hide-sm" />
                       <span className="num w-num">{a.activeTesterCount}<span className="of"> / {a.testerSlots}</span></span>
                     </li>
                   ))}
@@ -113,7 +62,6 @@ function MeSignedIn({ uid, isAdmin }: { uid: string; isAdmin: boolean }) {
   const owe = todos.filter((t) => t.kind === 'feedback').length
   const builds = todos.filter((t) => t.kind === 'build').length
   const asks = requests.data.reduce((n, r) => n + r.count, 0)
-  const total = todos.length + requests.data.length
   const p = profile.data
   const listed = myApps.data.length
   const nudge = p && listed > 0 && p.testingCount < listed
@@ -263,7 +211,7 @@ function MeSignedIn({ uid, isAdmin }: { uid: string; isAdmin: boolean }) {
                   {myApps.data.map((a) => (
                     <li className="row-line" key={a.id}>
                       <span className="grow cell-2"><Link to={`/apps/${a.id}`}><b>{a.name}</b></Link><span style={{ marginTop: 'var(--s-1)' }}><StatusPill status={a.status} /></span></span>
-                      <Seats active={a.activeTesterCount} eligible={a.eligibleCount} total={a.testerSlots} className="hide-sm" />
+                      <Seats active={a.activeTesterCount} total={a.testerSlots} className="hide-sm" />
                       <span className="num w-num">{a.activeTesterCount}<span className="of"> / {a.testerSlots}</span></span>
                     </li>
                   ))}

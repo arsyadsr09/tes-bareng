@@ -69,16 +69,17 @@ Tests create and remove their own members; the seed data stays.
 
 ## Without Docker: cloud Supabase dev project
 
-The team's dev project is `tesbareng-dev` (ref `wseoosidbkltxbgzwgsd`). Never
-use the production project for development, and ask the project owner before
-pushing migrations or changing its settings.
+Use a Supabase project that is meant for development, never the production
+project. If you were invited to the maintainers' shared dev project, use that
+one and ask its owner before pushing migrations or changing its settings.
+Otherwise, create your own free project (steps below).
 
 1. Create `web/.env.local` (gitignored) from `web/.env.example` with the
    project URL and anon key (Supabase dashboard, Project Settings, API).
 2. Sign in with Google. `?devLogin=` does not work against a cloud project, and
    email sign-in stays disabled there.
 
-Setting up a new dev project (owner only):
+Setting up your own dev project:
 
 1. Log in and link it: `npx supabase login`, then `npx supabase link --project-ref <ref>`.
 2. Apply the schema: `npx supabase db push`.

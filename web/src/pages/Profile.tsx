@@ -63,7 +63,7 @@ export function Profile() {
               {testing.map(({ e, app, d }) => (
                 <li className="row-line" key={e.appId}>
                   <span className="grow cell-2"><Link to={`/apps/${app.id}`}><b>{app.name}</b></Link></span>
-                  <span className="muted small num">{e.status === 'active' ? (d >= TARGET_DAYS ? 'Lulus 14 hari, masih aktif' : `Aktif, hari ke-${d}`) : 'Selesai 14 hari'}</span>
+                  <span className="muted small num">{e.status === 'active' ? (d >= TARGET_DAYS ? (app.countedDays >= TARGET_DAYS ? 'Lulus 14 hari, masih aktif' : '14 hari, tetap ikut sampai app lulus') : `Aktif, hari ke-${d}`) : 'Selesai 14 hari'}</span>
                 </li>
               ))}
             </ul>
