@@ -49,7 +49,7 @@ html.theme-anim .lp, html.theme-anim .lp * { transition: background-color 260ms 
 
 /* Scrub mode: pinned under the sticky header for exactly one viewport of scroll (ADR-001 §3). */
 .lp .ring-scroll.is-scrub { height: calc(200vh - var(--hh, 0px)); height: calc(200svh - var(--hh, 0px)); }
-.lp .is-scrub .ring-stage { position: sticky; top: var(--hh, 0px); height: calc(100vh - var(--hh, 0px)); height: calc(100svh - var(--hh, 0px)); padding-block: 24px; gap: clamp(24px, 4vw, 56px); }
+.lp .is-scrub .ring-stage { position: sticky; top: var(--hh, 0px); min-height: calc(100vh - var(--hh, 0px)); min-height: calc(100svh - var(--hh, 0px)); height: auto; padding-top: 24px; padding-bottom: 48px; gap: clamp(24px, 4vw, 56px); }
 .lp .is-scrub .ring-copy { gap: 18px; }
 .lp .is-scrub .ring-fig { max-width: min(640px, calc(82svh - var(--hh, 0px))); }
 .lp .is-scrub .tie { stroke-dasharray: 1 1; stroke-dashoffset: 1; }
