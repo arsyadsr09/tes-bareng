@@ -231,7 +231,7 @@ html.theme-anim .lp, html.theme-anim .lp * { transition: background-color 260ms 
 .lp .lp-toast.show { opacity: 1; transform: none; }
 
 /* ---------- Reveal effects (.lp.fx, set by React only when motion is allowed) ---------- */
-.lp.fx .rv { position: relative; }
+.lp.fx .rv { position: relative; overflow: clip; overflow-clip-margin: 16px; }
 .lp.fx .rv:not(.in) { opacity: 0; }
 .lp.fx .rv.in { animation: lp-wipe 760ms cubic-bezier(0.7, 0, 0.2, 1) both; }
 .lp.fx .rv.in::after { content: ""; position: absolute; left: -8px; right: -8px; top: 0; height: 100%; border-top: 3px solid var(--kunyit); pointer-events: none; z-index: 4; animation: lp-scan 760ms cubic-bezier(0.7, 0, 0.2, 1) both; }
