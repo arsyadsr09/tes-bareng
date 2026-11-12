@@ -5,7 +5,7 @@ import { IconExternal, IconPlus, IconSearch } from '../components/icons'
 import { errorText, rows, useFetch, type Row } from '../lib/data'
 import {
   addCohortMember, approveCohortRequest, closeCohort, REQUEST_REASON_MAX, rejectCohortRequest, usePendingRequestCounts, usePendingRequests, type CohortRequest, CLOSE_DAY, cohortDay, createCohort, fmtWib, LAST_JOIN_DAY, MIN_APPS, pinnedMessage,
-  reassignSlot, removeCohortMember, setCohortLink, settleMember, startCohort,
+  reassignSlot, removeCohortMember, resetCohort, setCohortLink, settleMember, startCohort,
   useAssignmentStatus, useCohort, useCohortLink, useCohorts, useMemberCandidates, useObligations,
   type Candidate, type CohortDetail, type CohortDoc, type CohortMember, type CohortStatus,
 } from '../lib/cohorts'
@@ -246,7 +246,12 @@ function CohortPanel({ c, heading, onChanged }: { c: CohortDetail; heading: RefO
           </p>
         </div>
         {c.status === 'forming' && <StartAction c={c} heading={heading} onStarted={onChanged} />}
-        {c.status === 'active' && <CloseAction c={c} heading={heading} onClosed={onChanged} />}
+        {c.status === 'active' && (
+          <div className="ch-active-actions">
+            <CloseAction c={c} heading={heading} onClosed={onChanged} />
+            <ResetAction c={c} heading={heading} onReset={onChanged} />
+          </div>
+        )}
       </div>
 
       {c.status === 'forming' && <FormingProgress c={c} />}
@@ -913,6 +918,66 @@ function CloseForm({ c, onClose, onClosed }: { c: CohortDetail; onClose: () => v
       <div className="sheet-foot">
         <button type="button" className="btn" onClick={onClose}>Batal</button>
         <button className="btn danger" aria-busy={busy || undefined}>{busy ? 'Menutup…' : 'Tutup cohort'}</button>
+      </div>
+    </form>
+  )
+}
+
+// ---------- reset active cohort back to forming ----------
+
+function ResetAction({ c, heading, onReset }: { c: CohortDetail; heading: RefObject<HTMLHeadingElement | null>; onReset: () => void }) {
+  const [open, setOpen] = useState(false)
+  const focusHeading = useFocusAfterClose(open, heading)
+  return (
+    <div className="ch-start">
+      <button type="button" className="btn" onClick={() => setOpen(true)}>Reset ke Forming</button>
+      <Dialog open={open} onClose={() => setOpen(false)} label={`Reset ${c.name}`}>
+        {open && <ResetForm c={c} onClose={() => setOpen(false)} onReset={() => { focusHeading(); onReset() }} />}
+      </Dialog>
+    </div>
+  )
+}
+
+function ResetForm({ c, onClose, onReset }: { c: CohortDetail; onClose: () => void; onReset: () => void }) {
+  const toast = useToast()
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const title = useRef<HTMLHeadingElement>(null)
+  useEffect(() => { const t = window.setTimeout(() => title.current?.focus(), 0); return () => window.clearTimeout(t) }, [])
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (busy) return
+    setBusy(true); setErr(null)
+    try {
+      await resetCohort(c.id)
+      toast(`${c.name} direset ke Forming. Tambahkan atau keluarkan anggota, lalu mulai ulang kapan saja.`)
+      onReset(); onClose()
+    } catch (x) {
+      setErr(errorText(x)); setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} noValidate>
+      <div className="sheet-body">
+        <h2 ref={title} tabIndex={-1}>Reset {c.name} ke Forming?</h2>
+        <p className="lede">Saat direset, TesBareng langsung:</p>
+        <ol className="ch-steps">
+          <li>Menghapus semua penugasan yang sudah dibagikan.</li>
+          <li>Menghapus urutan ring dan waktu penugasan dari setiap anggota.</li>
+          <li>Mengembalikan status cohort ke <b>Forming</b>; anggota tetap ada.</li>
+        </ol>
+        <p className="meta">Cohort bisa dimulai ulang kapan saja dari halaman ini. Anggota yang sudah opt-in ke aplikasi tetap tercatat sebagai tester di aplikasi masing-masing.</p>
+        <p className="notice admin-notice" role="note">
+          <span className="chip"><span className="g" aria-hidden="true">!</span>Penugasan hilang</span>
+          <span>Penugasan yang sudah dibagikan tidak bisa dikembalikan. Riwayat opt-in tester di aplikasi tetap ada.</span>
+        </p>
+        {err && <ErrorBox text={err} />}
+      </div>
+      <div className="sheet-foot">
+        <button type="button" className="btn" onClick={onClose}>Batal</button>
+        <button className="btn danger" aria-busy={busy || undefined}>{busy ? 'Mereset…' : 'Reset ke Forming'}</button>
       </div>
     </form>
   )

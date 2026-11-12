@@ -394,6 +394,7 @@ export const useCohortMembershipsOf = (uid: string | undefined) =>
     [] as { cohortId: string; cohortName: string; cohortStatus: CohortStatus; appId: string | null; standing: Standing | null; joinedAt: number }[], [uid],
   )
 
+export const resetCohort = (cohortId: string) => rpc('reset_cohort', { p_cohort_id: cohortId })
 export const closeCohort = (cohortId: string) => rpc('close_cohort', { p_cohort_id: cohortId })
 export const reassignSlot = (cohortId: string, appId: string, oldTesterId: string, newTesterId: string) =>
   rpc('reassign_slot', { p_cohort_id: cohortId, p_app_id: appId, p_old_tester_id: oldTesterId, p_new_tester_id: newTesterId })
