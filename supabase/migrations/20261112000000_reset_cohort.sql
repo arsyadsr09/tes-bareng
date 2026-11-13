@@ -9,17 +9,20 @@ security definer
 set search_path = ''
 as $$
 declare
-  c public.cohorts;
+  v_status text;
 begin
   perform private.require_admin();
-  c := private.lock_cohort(p_cohort_id);
-  if c.status <> 'active' then
+  select status into v_status from public.cohorts where id = p_cohort_id for update;
+  if not found then
+    perform private.fail('not-found', 'Cohort tidak ditemukan.');
+  end if;
+  if v_status <> 'active' then
     perform private.fail('failed-precondition', 'Hanya cohort yang sedang berjalan yang bisa direset.');
   end if;
 
-  delete from public.assignments where cohort_id = c.id;
-  update public.cohort_members set ring_position = null, assigned_at = null where cohort_id = c.id;
-  update public.cohorts set status = 'forming', day0_at = null where id = c.id;
+  delete from public.assignments where cohort_id = p_cohort_id;
+  update public.cohort_members set ring_position = null, assigned_at = null where cohort_id = p_cohort_id;
+  update public.cohorts set status = 'forming', day0_at = null where id = p_cohort_id;
 end;
 $$;
 
