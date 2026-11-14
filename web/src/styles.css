@@ -620,7 +620,7 @@ dialog.sheet[open] { animation: rise var(--t-enter) var(--ease); }
 .rb-count b { font-size: var(--fs-h2); }
 
 /* ---------- tester table: sticky header, row detail, Riwayat group ---------- */
-.sheet-scroll { max-height: min(72vh, 680px); overflow: auto; overscroll-behavior: contain; }
+.sheet-scroll { overflow-x: auto; overflow-y: visible; overscroll-behavior-x: contain; }
 .sheet-scroll:focus-visible { outline-offset: -3px; }
 .sheet-table thead th { position: sticky; top: 0; z-index: 2; }
 .sheet-table thead th.sticky { z-index: 4; }
@@ -713,7 +713,6 @@ html { scroll-padding-top: 76px; } /* clears the 60 px sticky bar: record-bar on
   .rh-actions { grid-column: 1; grid-row: auto; min-width: 0; }
   .rh-count { font-size: calc(var(--fs-display) - 4px); }
   .record-head h1 { font-size: calc(var(--fs-display) - 4px); }
-  .sheet-scroll { max-height: 70vh; }
   .detail-body { padding-left: var(--s-3); }
 }
 
