@@ -1,3 +1,221 @@
+/* ---------- Assignment ring + progress overview (complements FR-38 matrix) ---------- */
+.coh-graph-panel { overflow: hidden; }
+.coh-graph-lede { margin: 0 0 var(--s-3); max-width: 62ch; }
+.coh-graph-grid {
+  display: grid;
+  gap: var(--s-4);
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .coh-graph-grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); }
+}
+.coh-progress-skel { display: grid; gap: var(--s-3); }
+.coh-progress-wait { margin: 0; max-width: 36ch; }
+
+.coh-ring { margin: 0; display: grid; gap: var(--s-2); justify-items: center; }
+.coh-ring-svg {
+  width: min(100%, 420px); height: auto;
+  display: block;
+}
+/* Full network visible on load; click dims others and redraws the selected tester’s lines. */
+.coh-tie {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  transition: opacity var(--t-control) var(--ease);
+}
+.coh-graph-panel.is-in .coh-tie.is-base {
+  stroke-dashoffset: 0;
+  opacity: 0.85;
+  transition-delay: 280ms;
+}
+.coh-graph-panel.is-in .coh-tie.is-dim {
+  stroke-dashoffset: 0;
+  opacity: 0.12;
+  transition-delay: 0ms;
+}
+.coh-tie.is-lit {
+  opacity: 1;
+  stroke-width: 3.2;
+  animation: coh-tie-draw 420ms var(--ease) forwards;
+  animation-delay: calc(var(--j, 0) * 45ms);
+}
+.coh-ring.is-drawn .coh-tie.is-lit { stroke-dashoffset: 0; animation: none; }
+.coh-tie--pending { stroke: var(--muted); }
+.coh-tie--progress { stroke: var(--langit); }
+.coh-tie--done { stroke: var(--pandan); }
+.coh-tie--behind { stroke: var(--cabai); stroke-width: 3; }
+.coh-tie.is-lit.coh-tie--behind { stroke-width: 3.5; }
+.coh-tie--left { stroke: var(--muted); }
+.coh-graph-panel.is-in .coh-tie.is-base.coh-tie--left { opacity: 0.4; }
+.coh-graph-panel.is-in .coh-tie.is-dim.coh-tie--left { opacity: 0.08; }
+@keyframes coh-tie-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+.coh-nstamp {
+  opacity: 0;
+  transform: translate(4px, 4px);
+  transition: opacity var(--t-enter) var(--ease), transform var(--t-enter) var(--ease);
+  transition-delay: calc(var(--i, 0) * 50ms);
+}
+.coh-graph-panel.is-in .coh-nstamp {
+  opacity: 1;
+  transform: none;
+}
+.coh-nshadow { fill: var(--ink); }
+.coh-nbody { fill: var(--putih); stroke: var(--ink); stroke-width: 2.5; }
+.coh-node--pure .coh-nbody { fill: var(--kertas); }
+/* You = kunyit edge case; click focus = kunyit; job done = pandan + ✓ (real progress, not animation). */
+.coh-node.is-me:not(.is-focus):not(.is-complete) .coh-nbody { fill: var(--kunyit); }
+.coh-node.is-complete .coh-nbody { fill: var(--pandan); }
+.coh-node.is-act .coh-nbody { fill: var(--kunyit); }
+.coh-node.is-complete text,
+.coh-node.is-act text { fill: var(--on-fill); }
+.coh-node.is-complete.is-act .coh-nbody { fill: var(--kunyit); }
+.coh-node text {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px; font-weight: 700; text-anchor: middle;
+  fill: var(--ink); pointer-events: none; user-select: none;
+}
+.coh-ncheck rect { fill: var(--ink); }
+.coh-ncheck path { fill: none; stroke: var(--kertas); stroke-width: 2.5; stroke-linecap: square; }
+.coh-lg-ok {
+  display: inline-grid; place-items: center;
+  width: 14px; height: 14px; font-size: 10px; font-style: normal; font-weight: 800;
+  color: var(--kertas); background: var(--ink); flex-shrink: 0;
+}
+.coh-nhit { fill: transparent; cursor: pointer; }
+.coh-nhit:focus { outline: none; }
+.coh-nhit:focus-visible {
+  stroke: var(--ink); stroke-width: 3; stroke-dasharray: 4 3;
+}
+/* Hard shadow via translate on the stamp group (ADR-001: no animated box-shadow blur). */
+.coh-graph-panel.is-in .coh-node.is-focus .coh-nstamp { transform: translate(-2px, -2px); }
+.coh-graph-panel.is-in .coh-node.is-focus .coh-nshadow { transform: translate(5px, 5px); }
+.coh-ring-hint { margin: 0; text-align: center; max-width: 40ch; }
+
+.coh-ring-legend {
+  display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3);
+  justify-content: center; margin: 0;
+  font-size: var(--fs-caption); color: var(--muted);
+  opacity: 0;
+  transition: opacity var(--t-control) var(--ease) 360ms;
+}
+.coh-graph-panel.is-in .coh-ring-legend { opacity: 1; }
+.coh-ring-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.coh-lg-sq, .coh-lg-ci {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid var(--ink); background: var(--putih); flex-shrink: 0;
+}
+.coh-lg-ci { border-radius: 9999px; background: var(--kertas); }
+.coh-lg-line {
+  display: inline-block; width: 18px; height: 0;
+  border-top: 3px solid var(--muted); flex-shrink: 0;
+}
+.coh-lg-pending { border-top-style: dashed; }
+.coh-lg-progress { border-top-color: var(--langit); }
+.coh-lg-done { border-top-color: var(--pandan); }
+.coh-lg-behind { border-top-color: var(--cabai); }
+.coh-ring-focus {
+  margin: 0; text-align: center; max-width: 48ch;
+  opacity: 0; transform: translateY(6px);
+  animation: coh-graph-rise var(--t-control) var(--ease) both;
+}
+.coh-ring-forming-note { margin: 0; text-align: center; max-width: 40ch; }
+
+.coh-progress { display: grid; gap: var(--s-2); align-content: start; }
+.coh-progress-h {
+  margin: 0; font-size: var(--fs-small); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.coh-stack {
+  display: flex; width: 100%; height: 28px;
+  border: var(--bw) solid var(--ink); background: var(--putih);
+  overflow: hidden;
+}
+.coh-stack-seg {
+  min-width: 4px;
+  transform: scaleX(0);
+  transform-origin: left center;
+  opacity: 0.5;
+}
+.coh-graph-panel.is-in .coh-stack-seg {
+  animation: coh-stack-grow var(--t-enter) var(--ease) both;
+}
+.coh-graph-panel.is-in .coh-stack-seg:nth-child(1) { animation-delay: 120ms; }
+.coh-graph-panel.is-in .coh-stack-seg:nth-child(2) { animation-delay: 170ms; }
+.coh-graph-panel.is-in .coh-stack-seg:nth-child(3) { animation-delay: 220ms; }
+.coh-graph-panel.is-in .coh-stack-seg:nth-child(4) { animation-delay: 270ms; }
+.coh-graph-panel.is-in .coh-stack-seg:nth-child(5) { animation-delay: 320ms; }
+@keyframes coh-stack-grow {
+  from { transform: scaleX(0); opacity: 0.5; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+@keyframes coh-graph-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.coh-stack--feedback_verified { background: var(--pandan); }
+.coh-stack--feedback_sent { background: var(--langit); }
+.coh-stack--progress { background: var(--kunyit); }
+.coh-stack--not_joined { background: var(--surface-soft); }
+.coh-stack--left { background: var(--muted); opacity: 0.45; }
+.coh-graph-panel.is-in .coh-stack--left { opacity: 0.45; }
+.coh-progress-legend {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: var(--s-1);
+}
+.coh-progress-legend li {
+  display: grid; grid-template-columns: 14px 1fr auto;
+  gap: var(--s-2); align-items: center;
+  font-size: var(--fs-small);
+  opacity: 0;
+  transform: translateY(4px);
+}
+.coh-graph-panel.is-in .coh-progress-legend li {
+  animation: coh-graph-rise var(--t-control) var(--ease) both;
+  animation-delay: calc(200ms + var(--i, 0) * 50ms);
+}
+.coh-swatch {
+  width: 12px; height: 12px; border: 2px solid var(--ink); display: block;
+}
+.coh-progress-behind {
+  margin: var(--s-1) 0 0;
+  opacity: 0;
+  transform: translateY(4px);
+}
+.coh-graph-panel.is-in .coh-progress-behind {
+  animation: coh-graph-rise var(--t-control) var(--ease) both;
+  animation-delay: 360ms;
+}
+.coh-progress-foot { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .coh-nstamp,
+  .coh-tie,
+  .coh-tie.is-lit,
+  .coh-ring-legend,
+  .coh-stack-seg,
+  .coh-progress-legend li,
+  .coh-progress-behind,
+  .coh-ring-focus {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+  .coh-tie.is-base,
+  .coh-tie.is-lit { stroke-dashoffset: 0 !important; opacity: 0.85 !important; }
+  .coh-tie.is-dim { opacity: 0.12 !important; stroke-dashoffset: 0 !important; }
+  .coh-node.is-focus .coh-nbody { stroke-width: 4; }
+  .coh-node.is-focus .coh-nstamp { transform: none !important; }
+}
+
 /* B5: obligation matrix (FR-38, contract cohort_assignment_status). span-12 section.
    Flat cells; hard shadows only on touchable elements (ADR-001 §2.2).
    Status never by colour alone: cell glyph + title attr carry the text (ADR-001 §2.5). */
@@ -48,6 +266,21 @@
 .matrix-cell.unassigned > [aria-hidden] { font-size: 1.33em; line-height: 1; }
 /* behind: cabai left edge on the name cell (ADR-001 §2.2; edge = inset shadow, not border, to preserve layout) */
 .behind-row .matrix-td-name { box-shadow: inset 4px 0 0 var(--cabai); }
+/* Ring click → matrix: highlight name (kunyit edge); dim status cells only — never fade the sticky names
+   (opacity on <tr> washes the whole sticky column grey). */
+.matrix-focus-row .matrix-td-name {
+  box-shadow: inset 6px 0 0 var(--kunyit);
+  background: var(--putih);
+  font-weight: 800;
+  z-index: 2;
+}
+.matrix-focus-row .matrix-td-name a { color: var(--ink); }
+.behind-row.matrix-focus-row .matrix-td-name {
+  box-shadow: inset 6px 0 0 var(--kunyit), inset 10px 0 0 var(--cabai);
+}
+.matrix-dim-row .matrix-cell { opacity: 0.4; }
+.matrix-dim-row:hover .matrix-cell { opacity: 1; }
+.matrix-dim-row .matrix-td-name a { color: var(--ink); }
 .matrix-legend { margin-top: var(--s-2); padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3); }
 .matrix-legend li { white-space: nowrap; }
 

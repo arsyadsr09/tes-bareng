@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Badge, Bar, Chip, Empty, ErrorBox, FeedbackChip, Seats, Skel, StatusPill, TierProgress, useToast } from '../components/bits'
+import { Badge, Bar, Chip, Empty, ErrorBox, FeedbackChip, Seats, ShowAll, Skel, StatusPill, TierProgress, useToast } from '../components/bits'
 import { IconGoogle, IconPlus } from '../components/icons'
 import { useAuth } from '../lib/auth'
 import { COMMUNITY_GROUP_URL } from '../lib/community'
@@ -30,6 +30,8 @@ export function Me() {
   return <MeSignedIn uid={user.uid} isAdmin={isAdmin} />
 }
 
+const FEW = 4
+
 function MeSignedIn({ uid, isAdmin }: { uid: string; isAdmin: boolean }) {
   const t = useT()
   const toast = useToast()
@@ -39,6 +41,8 @@ function MeSignedIn({ uid, isAdmin }: { uid: string; isAdmin: boolean }) {
   const myPlayBlocked = useMyPlayUnreachableApps(uid)
   const profile = usePublicProfile(uid)
   const obligations = useMyObligations(uid)
+  const [allTodos, setAllTodos] = useState(false)
+  const [allTesting, setAllTesting] = useState(false)
 
   const suggestions = useMemo(() => {
     const mineIds = new Set(entries.data.map((e) => e.appId))
@@ -136,63 +140,70 @@ function MeSignedIn({ uid, isAdmin }: { uid: string; isAdmin: boolean }) {
                 )
                 : <Empty title={t('me_empty_done_title')}><p>{t('me_empty_done_body')}</p></Empty>
             ) : (
-              <ul>
-                {requests.data.map((r, i) => (
-                  <li className="row-line" key={`requests:${r.cohortId}`}>
-                    <span className="grow cell-2">
-                      <Link to={`/cohorts/${r.cohortId}`}><b>{r.cohortName}</b></Link>
-                      <span className="num">{t('me_request_waiting', { n: r.count })}</span>
-                    </span>
-                    <Link className={`btn sm${i === 0 ? ' primary' : ''}`} to={`/admin?bagian=cohort&cohort=${r.cohortId}`}>{t('me_review_requests')}</Link>
-                  </li>
-                ))}
-                {todos.slice(0, 4).map(({ entry, app, kind, count }, i) => {
-                  const playBlocked = (kind === 'join' || kind === 'listed') && myPlayBlocked.data.has(app.id)
-                  return (
-                  <li className="row-line" key={`${kind}:${app.id}`}>
-                    <span className="grow cell-2">
-                      <Link to={`/apps/${app.id}`}><b>{app.name}</b></Link>
-                      <span>
-                        {kind === 'join'
-                          ? (playBlocked ? t('me_todo_join_blocked') : (isLiveApp(app) ? t('me_todo_join_live') : t(joinedGroup ? 'me_todo_join_grouped' : 'me_todo_join_group')))
-                          : kind === 'listed'
-                            ? (playBlocked ? t('me_todo_join_blocked') : t('me_todo_listed'))
-                          : kind === 'emails'
-                            ? t('me_todo_emails', { n: count ?? 0 })
-                          : kind === 'build'
-                            ? t('me_todo_build', { when: relDay(app.lastBuildAt) })
-                            : t('me_todo_feedback_day', {
-                                d: daysActive(entry!),
-                                what: isLiveApp(app) ? t('me_todo_feedback_review') : t('me_todo_feedback_play'),
-                              })}
+              <>
+                <ul id="todo-list">
+                  {requests.data.map((r, i) => {
+                    if (!allTodos && i >= FEW) return null
+                    return (
+                      <li className="row-line" key={`requests:${r.cohortId}`}>
+                        <span className="grow cell-2">
+                          <Link to={`/cohorts/${r.cohortId}`}><b>{r.cohortName}</b></Link>
+                          <span className="num">{t('me_request_waiting', { n: r.count })}</span>
+                        </span>
+                        <Link className={`btn sm${i === 0 ? ' primary' : ''}`} to={`/admin?bagian=cohort&cohort=${r.cohortId}`}>{t('me_review_requests')}</Link>
+                      </li>
+                    )
+                  })}
+                  {todos.map(({ entry, app, kind, count }, i) => {
+                    const row = requests.data.length + i
+                    if (!allTodos && row >= FEW) return null
+                    const playBlocked = (kind === 'join' || kind === 'listed') && myPlayBlocked.data.has(app.id)
+                    return (
+                    <li className="row-line" key={`${kind}:${app.id}`}>
+                      <span className="grow cell-2">
+                        <Link to={`/apps/${app.id}`}><b>{app.name}</b></Link>
+                        <span>
+                          {kind === 'join'
+                            ? (playBlocked ? t('me_todo_join_blocked') : (isLiveApp(app) ? t('me_todo_join_live') : t(joinedGroup ? 'me_todo_join_grouped' : 'me_todo_join_group')))
+                            : kind === 'listed'
+                              ? (playBlocked ? t('me_todo_join_blocked') : t('me_todo_listed'))
+                            : kind === 'emails'
+                              ? t('me_todo_emails', { n: count ?? 0 })
+                            : kind === 'build'
+                              ? t('me_todo_build', { when: relDay(app.lastBuildAt) })
+                              : t('me_todo_feedback_day', {
+                                  d: daysActive(entry!),
+                                  what: isLiveApp(app) ? t('me_todo_feedback_review') : t('me_todo_feedback_play'),
+                                })}
+                        </span>
                       </span>
-                    </span>
-                    {playBlocked ? (
-                      <span style={{ display: 'flex', gap: 'var(--s-2)', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                        <button type="button" className="btn sm" onClick={() => {
-                          clearMyPlayUnreachable(app.id).catch((e) => toast(errorText(e, t)))
-                        }}>{t('me_cta_play_clear')}</button>
-                        <Link className={`btn sm${i === 0 && requests.data.length === 0 ? ' primary' : ''}`} to={`/apps/${app.id}`}>{t('me_cta_play_retry')}</Link>
-                      </span>
-                    ) : (
-                      <Link className={`btn sm${i === 0 && requests.data.length === 0 ? ' primary' : ''}`} to={`/apps/${app.id}`}>
-                        {kind === 'join' || kind === 'listed' ? t('me_cta_continue') : kind === 'emails' ? t('me_cta_add_email') : kind === 'build' ? t('me_cta_new_build') : (isLiveApp(app) ? t('me_cta_send_review') : t('me_cta_send_feedback'))}
-                      </Link>
-                    )}
-                  </li>
-                  )
-                })}
-              </ul>
+                      {playBlocked ? (
+                        <span style={{ display: 'flex', gap: 'var(--s-2)', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          <button type="button" className="btn sm" onClick={() => {
+                            clearMyPlayUnreachable(app.id).catch((e) => toast(errorText(e, t)))
+                          }}>{t('me_cta_play_clear')}</button>
+                          <Link className={`btn sm${row === 0 ? ' primary' : ''}`} to={`/apps/${app.id}`}>{t('me_cta_play_retry')}</Link>
+                        </span>
+                      ) : (
+                        <Link className={`btn sm${row === 0 ? ' primary' : ''}`} to={`/apps/${app.id}`}>
+                          {kind === 'join' || kind === 'listed' ? t('me_cta_continue') : kind === 'emails' ? t('me_cta_add_email') : kind === 'build' ? t('me_cta_new_build') : (isLiveApp(app) ? t('me_cta_send_review') : t('me_cta_send_feedback'))}
+                        </Link>
+                      )}
+                    </li>
+                    )
+                  })}
+                </ul>
+                {total > FEW && <ShowAll open={allTodos} total={total} onToggle={() => setAllTodos((x) => !x)} controls="todo-list" />}
+              </>
             )}
-            {todos.length > 4 && <p className="muted small num" style={{ marginTop: 'var(--s-2)' }}>{t('me_todo_more', { n: todos.length - 4 })}</p>}
           </section>
 
           <section className="panel fill" aria-labelledby="testing-h">
             <header><h2 id="testing-h">{t('me_testing_h')}</h2><span className="meta num">{t('me_testing_count', { n: testing.length })}</span></header>
             <div className="grow-body">
               {loading ? <RowsSkeleton /> : testing.length === 0 ? <><p className="muted">{t('me_testing_empty')}</p>{suggestList}</> : (
-                <ul>
-                  {testing.slice(0, 4).map(({ entry, app }) => {
+                <ul id="testing-list">
+                  {(allTesting ? testing : testing.slice(0, FEW)).map(({ entry, app }) => {
                     const d = daysActive(entry)
                     return (
                       <li className="row-line" key={entry.appId}>
@@ -208,7 +219,7 @@ function MeSignedIn({ uid, isAdmin }: { uid: string; isAdmin: boolean }) {
                 </ul>
               )}
             </div>
-            {testing.length > 4 && <Link className="text-action" style={{ marginTop: 'var(--s-2)', alignSelf: 'flex-start' }} to={`/u/${uid}`}>{t('me_see_all_profile', { n: testing.length })}</Link>}
+            {testing.length > FEW && <ShowAll open={allTesting} total={testing.length} onToggle={() => setAllTesting((x) => !x)} controls="testing-list" />}
           </section>
         </div>
 

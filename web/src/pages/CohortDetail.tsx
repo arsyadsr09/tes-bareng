@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Avatar, Badge, Bar, Chip, Dialog, Empty, ErrorBox, failToast, OverflowMenu, Skel, useToast, type MenuItem } from '../components/bits'
+import { CohortGraphs } from '../components/CohortGraphs'
 import { CohortChip, StandingChip, useFocusAfterClose } from '../components/cohortBits'
 import { IconBack, IconExternal } from '../components/icons'
 import { useAuth } from '../lib/auth'
@@ -15,6 +16,7 @@ import { fmtDate, fmtDateTime } from '../lib/progress'
 import {
   CLOSE_DAY, cohortDay, fmtWib, joinCohortAsTester, joinDeadline, joinOpen, LAST_JOIN_DAY, leaveCohort, MIN_APPS, ownDay, schedule,
   requestCohortSlot, useCohort, useCohortLink, useMyCohortRequest, useMyRequestableApps, useOwingCohorts, useAssignmentStatus, withdrawCohortRequest,
+  type AssignmentStatus,
   type CohortRequest,
   type CohortDetail as Cohort, type CohortMember, type CellState,
 } from '../lib/cohorts'
@@ -55,6 +57,9 @@ function Detail({ c, refresh }: { c: Cohort; refresh: () => void }) {
   // Only members and the admin may read the link (get_cohort_link): don't ask on behalf of anyone else.
   const link = useCohortLink(c.id, !!me || isAdmin)
   const badges = useBadgesOf(c.members.map((m) => m.userId))
+  const assignmentStatus = useCohortAssignmentStatus(c)
+  /** Ring / progress / matrix share one selected tester. */
+  const [graphFocusUid, setGraphFocusUid] = useState<string | null>(null)
   const [acked, setAcked] = useState(() => readAck(c.id))
   // Join and leave remove their own trigger: land on the page title (after the join dialog has closed).
   const title = useRef<HTMLHeadingElement>(null)
@@ -271,7 +276,17 @@ function Detail({ c, refresh }: { c: Cohort; refresh: () => void }) {
         <Schedule c={c} me={me} late={late} />
         <Members c={c} creators={creators} pure={pure} badges={badges.data} myUid={user?.uid} />
 
-        <ObligationMatrix c={c} />
+        <CohortGraphs
+          c={c}
+          status={assignmentStatus.data}
+          loading={assignmentStatus.loading}
+          error={assignmentStatus.error}
+          onRetry={assignmentStatus.retry}
+          myUid={user?.uid}
+          focusUid={graphFocusUid}
+          onFocusChange={setGraphFocusUid}
+        />
+        <ObligationMatrix c={c} status={assignmentStatus} focusUid={graphFocusUid} />
       </div>
 
       <JoinDialog open={dialog === 'join'} onClose={() => setDialog(null)} c={c} onDone={done} />
@@ -467,17 +482,28 @@ function MemberRow({ m, c, tier, mine }: { m: CohortMember; c: Cohort; tier?: Ba
   )
 }
 
+// ---------- graphs + matrix share one assignment-status fetch ----------
+
+function useCohortAssignmentStatus(c: Cohort) {
+  const apps = c.members.some((m) => m.appId != null)
+  const shouldLoad = c.status !== 'forming' && apps
+  return useAssignmentStatus(shouldLoad ? c.id : undefined)
+}
+
 // ---------- B5: obligation matrix (FR-38, cohort_assignment_status view) ----------
 
 const CELL_GLYPH: Record<CellState, string> = {
   not_joined: '○', left: '✕', opted_in: '◑', used: '●',
   feedback_sent: '✓', feedback_verified: '✓✓', reassigned: '→',
 }
-function ObligationMatrix({ c }: { c: Cohort }) {
+function ObligationMatrix({ c, status, focusUid }: {
+  c: Cohort
+  status: { data: AssignmentStatus[]; loading: boolean; error: string | null; retry: () => void }
+  focusUid: string | null
+}) {
   const t = useT()
   const apps = c.members.filter((m) => m.appId != null)
-  const shouldLoad = c.status !== 'forming' && apps.length > 0
-  const status = useAssignmentStatus(shouldLoad ? c.id : undefined)
+  const focusRowRef = useRef<HTMLTableRowElement>(null)
 
   const cells = useMemo<Map<string, Map<string, CellState>>>(() => {
     const m = new Map<string, Map<string, CellState>>()
@@ -491,7 +517,12 @@ function ObligationMatrix({ c }: { c: Cohort }) {
 
   const behind = useMemo(() => new Set(status.data.filter((s) => s.isBehind).map((s) => s.testerId)), [status.data])
 
-  if (!shouldLoad) return null
+  useEffect(() => {
+    if (!focusUid || !focusRowRef.current) return
+    focusRowRef.current.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [focusUid])
+
+  if (c.status === 'forming' || apps.length === 0) return null
   if (status.loading && status.data.length === 0) return null
   if (status.error) return (
     <section className="panel span-12" aria-label={t('coh_matrix_sr')}>
@@ -499,11 +530,18 @@ function ObligationMatrix({ c }: { c: Cohort }) {
     </section>
   )
 
+  const focusName = focusUid
+    ? (c.members.find((m) => m.userId === focusUid)?.displayName || t('coh_members'))
+    : null
+
   return (
-    <section className="panel span-12 matrix-panel" aria-labelledby="matrix-h">
+    <section className={`panel span-12 matrix-panel${focusUid ? ' has-focus' : ''}`} aria-labelledby="matrix-h">
       <header>
         <h2 id="matrix-h">{t('coh_matrix_sr')}</h2>
         {status.loading && <span className="meta">{t('loading')}</span>}
+        {!status.loading && focusName && (
+          <span className="meta num">{t('coh_matrix_focus', { name: focusName })}</span>
+        )}
       </header>
       <div className="matrix-wrap" tabIndex={0} role="region" aria-label={t('coh_matrix_scroll')}>
         <table className="matrix-table num">
@@ -518,11 +556,23 @@ function ObligationMatrix({ c }: { c: Cohort }) {
             </tr>
           </thead>
           <tbody>
-            {c.members.map((m) => (
-              <tr key={m.userId} className={behind.has(m.userId) ? 'behind-row' : ''}>
+            {c.members.map((m) => {
+              const focused = focusUid === m.userId
+              const dimmed = focusUid != null && !focused
+              return (
+              <tr
+                key={m.userId}
+                ref={focused ? focusRowRef : undefined}
+                className={[
+                  behind.has(m.userId) ? 'behind-row' : '',
+                  focused ? 'matrix-focus-row' : '',
+                  dimmed ? 'matrix-dim-row' : '',
+                ].filter(Boolean).join(' ')}
+              >
                 <td className="matrix-td-name">
                   <Link to={`/u/${m.userId}`}>{m.displayName || t('coh_members')}</Link>
                   {behind.has(m.userId) && <span className="sr-only">{t('coh_behind_sr')}</span>}
+                  {focused && <span className="sr-only">{t('coh_matrix_focus_sr')}</span>}
                 </td>
                 {apps.map((app) => {
                   if (app.userId === m.userId) {
@@ -536,7 +586,8 @@ function ObligationMatrix({ c }: { c: Cohort }) {
                   return <td key={app.appId} className={`matrix-cell ${cell}`} title={lbl}><span aria-label={lbl}>{CELL_GLYPH[cell]}</span></td>
                 })}
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>
